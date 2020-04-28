@@ -1,2 +1,50 @@
-# ipv6-scanner
-Strategies which could be used to scan the IPv6 address space (initial PhD project)
+# IPv6 Scanning Project
+This is an early-stage PhD project to investigate strategies which could be used to scan the IPv6 address space.
+
+## Research Question
+How would malware perform scans for automated host recruitment on IPv6-only networks?
+
+## Why IPv6 Scans?
+IPv4 address are 32-bits in length, giving a total of just under 4.3 billion possible addresses (2^32). This address space can be exhaustively scanned in 5 minutes, however, malware often performs these over several hours to avoid raising suspicion.
+
+The number of devices which require Internet connectivity has risen well beyond 4.3 billion, leading to compromises like Network Address Translation (NAT). These measures have created the appearance of a larger IPv4 address space, but they create other issues through breaking the end-to-end connection between devices. IPv6 addresses are intended to fix these issues by offering a much, much larger address space to allow each device to have its own unique address once again.
+
+While a range of 2^128 possible addresses solves architectural problems caused by breaks in end-to-end connectivity between devices, it introduces a different problem: it's impossible to exhaustively scan an address space this vast in any useful timeframe. This is a problem for network administrators, who perform scansfor legitimate purposes, but this will also affect the propagation of malware: many variants use exhaustive IPv4 scans for host recruitment on both local networks and in the wider Internet, and this will no longer be feasible in an IPv6 address space.
+
+This project focuses on potential IPv6 scanning strategies from the perspective of malicious parties, rather than network administrators - there are interesting questions about how much data can be obtained about a host from its IPv6 address, and whether attacks might actively want to switch to using IPv6 scans if this exposed information turns out to have an economic or opsec benefit for malware-as-a-service or pay-per-install operations.
+
+## Summary of Findings so Far
+* [RFC 7707](https://tools.ietf.org/html/rfc7707) contains a lot of valuable information on reconnaissance in IPv6 networks
+* [zmap extensions](https://github.com/tumi8/zmap) are available for scanning IPv6 addresses
+* 6Gen and Entropy/IP are tools used for generating potential IPv6 targets - not clear on the methods they use to generate these lists as yet
+* If a device on a local network is infected through some other vector (eg. infected email attachment), the malicious application would know the network prefix which is in use - this reduces the search space from 128 bits to 64 bits
+* Bytes 0, 1, and 2 are an Organisationally Unique Identifier (OUD) - this is the first half of the MAC address used by the network interface card (NIC) with this IPv6 address
+* Bytes 3 and 4 of the IID half of an IPv6 address are always set to 0xfffe, reducing the search space by a further 16 bits
+* The search space is reduced to n(2^24) bits, where n different types of NICs are being searched for - only the last 24 bits need to be searched exhaustively (ie. the last half of the interface's MAC address)
+* Privacy addresses mask the true MAC address of outgoing traffic, mitigating the impact of passive surveillance, but may not provide protection against active scanning attacks if they are just an alias for the SLAAC address (currently think this is the case, need to investigate this)
+
+
+## Recently Completed Tasks
+* Set up repo and readme
+* Got wandio working
+
+## Current Tasks
+* Write a more detailed timeline of tasks in separate file
+* Obtain files in notes directory, and convert into a more polished writeup/progress report section
+* Try obtaining in-use IPv6 network prefixes for a single day using BGPStream
+* Generate a taxonomy diagram showing which regions of an IPv6 address can be removed from the search space, and show the reduction in address space in terms of bits at each stage
+
+## Current Questions
+#### ie. smaller stuff which could maybe be another sub-project within the PhD
+* Which factors would encourage/force malware authors to use IPv6 scanning over IPv4 scans? Full migration to IPv6 will take decades and legacy use of IPv4 will likely continue, but additional data supplied by IPv6 addresses (eg. MAC addresses) could provide quieter, more targeted scanning capabilities.
+* Can a SLAAC-assigned IID still be contacted even when a device has been given a privacy address (ie. is it a replacement for a SLAAC address or just an alias)?
+* Which heuristics can be exploited for IPv6 scans on networks which do not assign SLAAC addresses? 
+* Are any malware samples known to actually use IPv6 scanning in the wild?
+
+
+## Potential Later Topics
+* The economy of pay-per-install services: could MAC addresses provide a more bespoke service, given that specific models/brands of devices could be targeted by their IPv6 address?
+* 'Malware authors probably wouldn't be able to write that': I keep hearing this anecdotally from several security researchers when asking about stuff like IPv6 and QUIC in malware. I'm not sure I buy it - if a group/lone actor is capable of finding new exploits, they clearly have enough technical skill to identify and implement something unusual. Most attacks go for the weakest link in the chain (something really easy like SQL injection or phishing, etc), but there are a number of questions I still have about more innovative stuff:
+	* How widespread is the use of recycled code in malware samples (ie. does a new exploit tend to come from one party or are several people able to write these)? Mirai variants could be a good case study for this.
+	* Which kinds of groups are more likely to develop and/or distribute novel malware functionality?
+	*What proportion of clients of malware-as-a-service outfits have only minimal technical knowledge?
