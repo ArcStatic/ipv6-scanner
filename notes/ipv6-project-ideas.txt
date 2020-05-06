@@ -1,0 +1,29 @@
+Initial question: what will malware look like in the future? 
+	- malware trends shift in response to both social/economic factors and technical factors, eg:
+		- ransomware (WannaCry, CryptoLocker) has become very popular with the development of cryptocurrencies and a reliance on digital storage
+		- some modern botnets (Mirai) take advantage of IoT devices left with default credentials by non-technical users
+		- phishing campaigns (Emotet, TrickBot initial infection vectors) have become more sophisticated due to an increase in the number of legitimate online services and accessibility to millions of users
+		- worms (Koobface) spread through social networks/contact lists
+		- scareware (some scammer with a crypto wallet and leaked credentials) has become more effective as a result of the majority of Internet users engaging in blackmailable online behavior (ie. legal, yet taboo))
+
+
+Many different types of malware rely on IPv4 address space scanning, which can be exhaustably searched in minutes. How will malware which relies on this function if the entire Internet shifts to using IPv6, which cannot be exhaustively scanned in any feasible amount of time?
+
+Some infection vectors will be unchanged, like phishing campaigns and suspect downloads, but using these vectors alone would only target a single device (maybe a handful of devices if a login-based service was compromised with multiple active sessions). However, even malware strains which primarily use these as their infection vectors often use network scanning to replicate themselves further where possible (eg. Emotet will perform network scanning and attempt to brute force credentials for other devices after infecting an initial device through phishing).
+
+IoT-focused malware strains like Mirai will struggle with relying on social engineering-based approaches given the difficulty many users face with interacting with IoT devices (if the device has been left with default credentials, it's unlikely a user would be able to/care enough to transfer a malicious file over to it). Address scanning will likely remain an important vector which malware authors will adapt for IPv6, especially for botnets which focus on mass recruitment of low-end, poorly secured devices.
+
+Mass recruitment of infected hosts has become a black-market business venture - hosts can be rented out to clients for infection with custom malware (infrastructure as a service, eg. Emotet authors renting machines to Ryuk ransomware authors), operators can be hired to perform attacks by clients who lack technical knowledge (eg. DDoS for hire), or malware source code/binaries can be sold as products or services (malware as a service - distinct from IaaS in that the malware has already been written, usually has support services as well). An efficient IPv6 address space scanning algorithm could give malicious enterprises a business advantage, particularly a MAC-address led algorithm biased towards devices which are vulnerable towards a specific exploit. It's possible that only scanning for particular types of devices could be favoured by criminal enterprises since it may attract less attention from network administrators than a mass scan of IPv4 addresses would (not overly sure about this one).
+
+Anticipating how these scans would be performed would help with developing strategies to detect and prevent potential malicious activity in IPv6 networks. Investigation into potential search algorithms could also assist dynamic binary analysis by providing insights into the behaviour of a sample through captured outgoing traffic (eg. 'which type(s) of device is this sample looking for?').
+
+
+Somewhat refined question: is it possible to scan for specific types of devices in a local network and in the wider Internet based on the MAC address section of their respective IPv6 addresses? IoT devices seem like the most likely candidates to be identifiable, given the use of privacy addresses in more complex devices (phones, tablets, laptops, etc).
+
+
+
+
+
+
+
+

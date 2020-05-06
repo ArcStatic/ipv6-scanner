@@ -27,6 +27,10 @@ This project focuses on potential IPv6 scanning strategies from the perspective 
 ## Recently Completed Tasks
 * Set up repo and readme
 * Got wandio working
+* Attended Deserted Island DevOps virtual conference
+* Completed Malware Unicorn RE 101 and 102
+* BGPStream installed (minus kafka support - mint doesn't support a recent enough version (supports 0.8, requires 0.11), will set up on another machine later if kafka ends up being needed)
+
 
 ## Current Tasks
 * Write a more detailed timeline of tasks in separate file
@@ -36,15 +40,22 @@ This project focuses on potential IPv6 scanning strategies from the perspective 
 
 ## Current Questions
 #### ie. smaller stuff which could maybe be another sub-project within the PhD
+#### IPv6
 * Which factors would encourage/force malware authors to use IPv6 scanning over IPv4 scans? Full migration to IPv6 will take decades and legacy use of IPv4 will likely continue, but additional data supplied by IPv6 addresses (eg. MAC addresses) could provide quieter, more targeted scanning capabilities.
 * Can a SLAAC-assigned IID still be contacted even when a device has been given a privacy address (ie. is it a replacement for a SLAAC address or just an alias)?
 * Which heuristics can be exploited for IPv6 scans on networks which do not assign SLAAC addresses? 
 * Are any malware samples known to actually use IPv6 scanning in the wild?
-
+#### Phishing
+* How do email addresses become available to actors running spam/phishing campaigns (ie. which sources are being crawled/mined)?
+* What percentage of spam emails are about which topics in a given timeframe (finance, health, adult content, blackmail, etc)?
+* Are there any geographical links between senders/recipients and subject matter(eg. certain things being more taboo/significant in certain countries)?
+* How common is it for samples to try and appear legitimate to lure in as many users as possible compared to looking as suspicious as possible to mainly target vulnerable users? Do these approaches try to gain different things (credentials vs direct financial payments)?
+* What's the best way to collect a wide range of spam/phishing campaign samples? Honeypot accounts and existing collectors for current campaigns, existing datasets for historical samples?
 
 ## Potential Later Topics
+#### ie. questions which are too large to cover in the PhD, but could be interesting work later on
 * The economy of pay-per-install services: could MAC addresses provide a more bespoke service, given that specific models/brands of devices could be targeted by their IPv6 address?
 * 'Malware authors probably wouldn't be able to write that': I keep hearing this anecdotally from several security researchers when asking about stuff like IPv6 and QUIC in malware. I'm not sure I buy it - if a group/lone actor is capable of finding new exploits, they clearly have enough technical skill to identify and implement something unusual. Most attacks go for the weakest link in the chain (something really easy like SQL injection or phishing, etc), but there are a number of questions I still have about more innovative stuff:
 	* How widespread is the use of recycled code in malware samples (ie. does a new exploit tend to come from one party or are several people able to write these)? Mirai variants could be a good case study for this.
 	* Which kinds of groups are more likely to develop and/or distribute novel malware functionality?
-	*What proportion of clients of malware-as-a-service outfits have only minimal technical knowledge?
+	* What proportion of clients of malware-as-a-service outfits have only minimal technical knowledge?

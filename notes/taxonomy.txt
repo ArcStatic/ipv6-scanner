@@ -1,0 +1,75 @@
+Taxonomy of IPv6 addresses:
+
+-----------------------
+Ranges which can be removed from Internet-wide searches:
+- Unique Local Addresses (ULAs) (for Internet-wide scans, still useful on local networks) (fc00::/7) [1]
+- Link-Local Addresses (fe80::/10) [1]
+
+Ranges which can be removed from local searches:
+- Teredo (IPv6 tunnelling through IPv4 NATs - 2001:0000::/32) [1]
+- 6to4 (conversion gateways? 2002::/16) [1]
+
+Ranges which can be removed from both Internet-wide and local searches:
+- Benchmarking addresses (2001:0002::/48) [1]
+- Orchid (only used for experimental purposes - 2001:0010::/28) [1]
+- Documentation only (2001:db8::/32)
+
+Ranges which are insignificant:
+- Unspecified (::/128) [1]
+- Loopback (::1/128) [1]
+
+Not sure:
+- Global Unicast (2000::/3) [1]
+- Multicast (no source addresses here for potential hosts, but could be useful for gathering responses from active addresses? ff00::/8) [1]
+
+-------------------------
+
+Useful patterns:
+
+- new devices joining a network send a multicasted solicitation requesting network configuration information - is it possible for a malicious non-router host to eavesdrop on this and obtain potentially useful information (MAC address, etc) [2, section 4.1.1]
+	- infected device would already know the local network prefix
+
+- bit 6 of the first byte of a given MAC address is always set to 1 (universal bit) as part of the locally generated interface identifier (IID). 0xfffe is inserted between the organisationally unique identifier (OUD) and the rest of the Ethernet address, as bytes 3 and 4.
+	- For a 64-bit IID, 16 bits are fixed, 24 are vendor-specific, and 24 don't seem to match a specific pattern (need to look into this)
+	- IID search space is reduced from 18,446,744,073,709,551,616 possible addresses (2^64) to 16,777,215n (2^24) addresses, where n is the number of OUDs being searched for
+	- IPv4 address space (2^32) is searchable in about 5 minutes, so 2^24 is entirely feasible for multiple OUDs
+
+- Sequential MAC addresses may be possible if a batch of devices was ordered from a vendor at the same time (particularly in corporate environments)
+
+- VMs can have an IID search space between 8 and 24 bits
+
+- DHCPv6 tends to assign addresses sequentially, so starting search in local networks from [prefix]::1 upwards should be productive [2, section 4.1.2]
+	- Should be able to make a reasonable guess at whether sequential allocation is in use based on address of infected host
+	- DHCPv6 support is optional, SLAAC is mandatory, but most OSes support both
+
+-------------------------
+
+Potential difficulties:
+
+- Privacy addresses are supposed to replace 'traditional' IIDs based on link-layer addresses, and are designed to be short-lived (preferred for 24h, valid for 7 days) - the random prefix used for these is sent in a router advertisement message, so may be device independent?
+
+- SLAAC addresses are usually used for more stable hosts (ie. servers), while privacy addresses are common for clients
+
+- However... "in the absence of firewall protection for the host, its stable SLAAC address remains liable to be scanned from off-site"
+	- Are privacy addresses just aliases for the SLAAC addresses?
+	- IoT devices unlikely to have much firewall protection, particularly in domestic networks - use of privacy addresses does not matter for scanning, given that these addresses are mostly used for masking outbound communications rather than deflecting inbound traffic
+
+-------------------------
+
+Papers to look at in more detail later:
+- Target Generation for Internet-wide IPv6 Scanning (a lot of stuff about statistical analysis of target generation algorithms and sets of IPv6 seeds) 
+
+-------------------------
+
+Potential tools to use for scanning:
+- Entropy/IP
+- 6Gen
+- modified zmap
+- more to be read in RFC7707
+
+[1] - https://www.ripe.net/participate/member-support/lir-basics/ipv6_reference_card.pdf
+[2] - https://tools.ietf.org/html/rfc7707
+
+
+
+
