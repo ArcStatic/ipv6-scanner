@@ -1,0 +1,73 @@
+===========
+GENERAL:
+
+!!  - important field relevant to this project
+~~  - field which might be important to this project
+??  - field I don't understand yet - could be relevant
+
+headers etc in lib/
+
+example string output of elem:
+U|A|1407813784.000000|ris|rrc00|||6881|2a02:38::2|2403:f600::/32|2a02:38::2|6881 6939 4826 38456 55722|55722|||
+
+[Update] | [Announcement / Withdrawal] | [observed by collector RRC00] | [Peer ASN] | [Peer IP] | [Prefix] | [Next hop] | [AS path] | [Origin AS] | [Communities]
+
+
+===========
+RELEVANT STRUCTS:
+
+bgpstream_record_t struct fields:
+
+    - bgpstream_record_type_t type: states whether the record comes from RIB dump or BGP Update message
+    - bgpstream_record_status_t status: status of this record (mostly error messages)
+    - uint32_t time_sec: time the RIB entry was dumped by the collector/time the collector received the UPDATE message
+    - uint32_t time_usec: microsecond component of the above, might just be 0 if granularity of results is restricted to seconds
+    - char* project_name: if set, identifies the organisation running the BGP collector which gathered this information
+              - ("projects" operate "collectors", which collect data from "routers", who have "peers")
+    - char* collector_name: collector identifier
+    - char* router_name: used for kafka stuff, not relevant to this project
+    - bgpstream_ip_addr_t router_ip: also not relevant
+
+
+bgpstream_elem struct:
+    - bgpstream_elem_type_t type: RIB or UPDATE
+    - uint32_t orig_time_sec: the time this IPv6 prefix was heard (by the collector, I'm assuming?)
+         - NOT THE SAME AS time_sec FIELD IN RECORD
+    - uint32_t orig_time_usec: microseconds component of above
+    - bgpstream_ip_addr_t peer_ip: IP addr used by peer to connect to collector
+    - uint32_t peer_asn: AS number of peer
+!!  - bgpstream_pfx_t prefix: IP prefix - what we're looking for in this project
+~~  - bgpstream_ip_addr_t nexthop: *probably* don't care about this, but look into it anyway - could be another source of in-use prefixes
+    - bgpstream_as_path_t* as_path: don't care about this
+    
+    ...
+
+
+bgpstream_ip_addr_t struct:
+
+
+
+bgpstream_pfx_t struct: 
+
+
+char* bgpstream_elem_snprintf: gives IPv6 prefix as part of a string representation of a bgpstream_elem
+
+
+=============
+QUESTIONS:
+
+what's the difference between an elem and a record?
+    - records contain multiple elements. elems contain relevant prefix info
+where are the actual IPv6 addr ranges/blocks?
+    - bgpstream_elem->prefix
+
+
+
+
+
+
+
+
+
+
+
