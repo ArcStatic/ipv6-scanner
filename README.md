@@ -30,12 +30,14 @@ This project focuses on potential IPv6 scanning strategies from the perspective 
 * Attended Deserted Island DevOps virtual conference
 * Completed Malware Unicorn RE 101 and 102
 * BGPStream installed (minus kafka support - mint doesn't support a recent enough version (supports 0.8, requires 0.11), will set up on another machine later if kafka ends up being needed)
-
+* Previous taxonomy and project notes obtained
+* IPv6 address prefixes obtained and filtered for unique values (for a ~5 hour window in Aug 2014, will update to more recent values when tooling is complete)
+* Overlaps between obtained prefixes found
 
 ## Current Tasks
 * Write a more detailed timeline of tasks in separate file
-* Obtain files in notes directory, and convert into a more polished writeup/progress report section
-* Try obtaining in-use IPv6 network prefixes for a single day using BGPStream
+* Convert notes into a more polished writeup/progress report section
+* Determine whether address overlaps are complete or partial
 * Generate a taxonomy diagram showing which regions of an IPv6 address can be removed from the search space, and show the reduction in address space in terms of bits at each stage
 
 ## Current Questions
