@@ -8,9 +8,14 @@ def remove_duplicates(raw_file):
         #strict implicitly set to true, no host bits allowed to be set
         addrs[i] = ipaddress.IPv6Network(addrs[i][:-1])
     uniques = set(addrs)
-    if "--filter-only" in sys.argv:
+    if "--prefix-count" in sys.argv:
+        totals = {}
         for x in uniques:
-            print(x, end = '')
+            #print(x, end = '')
+            totals.setdefault(x.prefixlen, 0)
+            totals[x.prefixlen] += 1
+        for k, v in sorted(list(totals.items())):
+            print("prefix: %d, %d instances" % (k,v));
     return uniques
 
 '''
@@ -55,7 +60,6 @@ def find_subsets(addr_set):
                         del subsets[x]
                     else:
                         subsets[y].append(x)
-    print("\n\n\n\n\n")
     return subsets
 
 f = open(sys.argv[1])
@@ -63,5 +67,7 @@ uniques = remove_duplicates(f)
 f.close()
 subsets = find_subsets(uniques)
 
-for k, subset_list in subsets.items():
-    print("%s: %s\n" % (k, subset_list))
+if "--print-outputs" in sys.argv:
+    for k, subset_list in subsets.items():
+        print("%s: %s\n" % (k, subset_list))
+
