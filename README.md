@@ -32,13 +32,19 @@ This project focuses on potential IPv6 scanning strategies from the perspective 
 * BGPStream installed (minus kafka support - mint doesn't support a recent enough version (supports 0.8, requires 0.11), will set up on another machine later if kafka ends up being needed)
 * Previous taxonomy and project notes obtained
 * IPv6 address prefixes obtained and filtered for unique values (for a ~5 hour window in Aug 2014, will update to more recent values when tooling is complete)
-* Overlaps between obtained prefixes found
+* Overlaps between obtained prefixes found, chains between advertised prefixes documented
 
 ## Current Tasks
 * Write a more detailed timeline of tasks in separate file
 * Convert notes into a more polished writeup/progress report section
-* Determine whether address overlaps are complete or partial
-* Generate a taxonomy diagram showing which regions of an IPv6 address can be removed from the search space, and show the reduction in address space in terms of bits at each stage
+* Create visualisation of advertised IPv6 address ranges - data exists, graph does not as yet
+* Look into variants of [ZeuS, a banking trojan said to have IPv6 capabilities for p2p networks](https://www.secureworks.com/research/the-lifecycle-of-peer-to-peer-gameover-zeus)
+	* "Although CTU researchers have not yet observed active peers with IPv6 addresses, that scenario may change over time as more ISPs and commodity hardware support IPv6." - article published in 2012, need to find out if IPv6 is in use for p2p traffic - would be interesting to see how it manages host tracking/discovery and swarm management
+	* articles from [2016](https://blog.radware.com/security/2016/12/ipv6-security-today/) and [????](https://www.sophos.com/en-us/security-news-trends/security-trends/why-switch-to-ipv6.aspx) indicate that IPv6 is in use for command and control traffic, but nothing mentioned about use of IPv6 scanning in samples
+* Read Schindler et al. 2014 paper, [Shellcode Detection in IPv6 Networks with HoneydV6](https://www.scitepress.org/Papers/2014/50168/50168.pdf)
+* Skim SANS Institute paper, [A Complete Guide on IPv6 Attack and Defense](https://www.sans.org/reading-room/whitepapers/detection/complete-guide-ipv6-attack-defense-33904)
+* Do more work on [IPv6 local host discovery](https://twitter.com/noIPv6/status/1262233560204718080) - could help with locating hosts when searching by OUI doesn't work (ie. SLAAC not in use) or for more general target profiling
+* Are SLAAC addresses accessible through active scanning even when privacy addresses are issued? (["yes and no!"](https://twitter.com/ArcStatic42/status/1262224894412099584))
 
 ## Current Questions
 #### ie. smaller stuff which could maybe be another sub-project within the PhD
@@ -47,6 +53,9 @@ This project focuses on potential IPv6 scanning strategies from the perspective 
 * Can a SLAAC-assigned IID still be contacted even when a device has been given a privacy address (ie. is it a replacement for a SLAAC address or just an alias)?
 * Which heuristics can be exploited for IPv6 scans on networks which do not assign SLAAC addresses? 
 * Are any malware samples known to actually use IPv6 scanning in the wild?
+* [Is it possible to maliciously deploy IPv6 to circumvent firewalls?](https://twitter.com/agowa338/status/1262246804768411653) Clients are said to prefer IPv6 to IPv4, this could allow a lot of interesting points of entry.
+* How much work do malware authors actually have to put in to make use of IPv6 in their applications (and are they even aware their samples are using IPv6)? Reuse of existing application and library code is very common - if any of this is already IPv6-capable, this could reduce the barrier of entry to creating IPv6-enabled malware.
+* How often do IPv6 scans get blocked by firewalls, given that IPv6 firewalls could be easily misconfigured or that traffic might not be routed through a local network router first?
 #### Phishing
 * How do email addresses become available to actors running spam/phishing campaigns (ie. which sources are being crawled/mined)?
 * What percentage of spam emails are about which topics in a given timeframe (finance, health, adult content, blackmail, etc)?
