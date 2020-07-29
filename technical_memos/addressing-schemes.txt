@@ -1,0 +1,183 @@
+Research question:
+Is it possible to find which IPv6 addresses are in use on a given network?
+
+Sub-questions:
+How can I find which IPv6 addresses are in use for each addressing scheme?
+
+IPv6 addressing schemes:
+- SLAAC
+	- IEEE identifiers (OUIs)
+	- Virtual machine addresses
+	- Temporary/privacy addresses
+- DHCPv6
+- Manual address configuration
+	- Low-byte addresses
+	- IPv4-based addresses
+	- Service-port addresses
+	- 'Wordy' addresses
+
+-----------------
+SLAAC:
+	- SLAAC support is mandatory for automatic address allocation
+	- Host joining the network sends Router Solicitation message to local routers to request config info, routers respond with config info in Router Advertisement message
+		- TODO: examine content of Solicitation and Advertisement messages
+	- first 64 bits of a 128-bit IPv6 address are supplied by Advertisement messages (ie. the local network prefix)
+	- variants: IEEE identifiers (ie. OUIs), VM addressing, temporary/privacy addresses, semantically opaque IDs
+
+-----------------
+IEEE identifiers:
+	- "traditional" SLAAC IIDs
+	- first 24 bits are organisationally unique identifiers (OUIs)
+	- limited number of OUIs in use - search space is reduced even further by only searching for relevant OUIs for specific type(s) of device being searched for
+	- 16 bits after that are constant value 0xfffe
+	- final 24 bits is the host-specific half of the network interface's MAC address
+	- potentially sequential IIDs if these devices were ordered in batch (eg. enterprise setting)
+
+Search space for SLAAC assigned IPv6 address using IEEE identifiers/OUIs: 24 bits
+Strongly suspect this is the system used for address assignment in IoT devices.
+Potentially could still access mainstream general-purpose OSes using this scheme?
+
+-----------------
+IIDs for virtual machines:
+	- several specific schemes for VirtualBox and VMware products
+	- these are outdated (from 2011) - VirtualBox example does not work for the host-only adaptor on my machine (OUI is different, and current OUI is not reflected in the link-local address) 
+
+-----------------
+Temporary/privacy addresses
+	- Randomised host ID is attached to stable network prefix
+		- TODO: find Gont DEEPSEC2011 paper, link supplied is invalid
+	- Short-lived: temporary addresses are usually preferred for 24 hours, configured but deprecated for 7 days
+		- TODO: find out if deprecated addresses can still be contacted
+	- "implementation/use of "temporary addresses" does not prevent an attacker from leveraging the predictability of stable SLAAC addresses, since "temporary addresses" are generated in addition to (rather than as a replacement of) the stable SLAAC addresses (such as those derived from IEEE identifiers)"
+
+-----------------
+Constant Semantically Opaque IIDs
+	- used instead of OUI-based IID generation on windows
+	- thought to be based on privacy extensions (RFC 4941), but does not change addresses over time
+	- this address is stable across networks, same as OUI-based addressing - individual hosts can be tracked on different networks, can still be actively contacted if this IID is discovered previously (particularly smartphones)
+	- removes patterns and info about the host's MAC address, assuming no flaws in the implementation
+		- there may well be a flaw in this, somewhere... It's possible to fingerprint some malware variants through sub-par RNG implementations, could be able to do something similar here.
+		- TODO: how does this alg avoid collisions?
+	-
+
+-----------------
+Stable Semantically Opaque IIDs
+	- Similar to constant semantically opaque IIDs, but the IID changes when a device changes subnets
+	- Discussed in RFCs 7721 and 7217
+
+-----------------
+DHCPv6:
+	- Search space could be anywhere from 64 bits to 8 bits
+		- 64 bits if addresses are selected randomly, 8 to 16 bits is more common if specific ranges are specified
+	- Relatively easy to find hosts on a network using DHCPv6, if the address range can be identified
+	- Very difficult to find active hosts if chosen randomly (64-bit address space)
+	- Randomised approach advised in RFC 7707
+
+-----------------
+Manual config:
+	- Usually used by servers rather than clients
+	- Manual addressing typically used for router addresses (automatic configuration not usually used)
+	- Details are manually entered by administrator into config files of some sort
+	- Possibility of using dictionary attacks - sometimes words are encoded into hex representations of addresses
+	- IPv4 addresses can be embedded in IID section of IPv6 address (eg. 2001:db8:192.0.2.1)
+	- Service port addresses can be embedded IID section of in IPv6 address (eg. 2001:db8:80)
+
+-----------------
+Low-byte addresses:
+	- Most common form is all bytes in IID set to 0 except LSB (eg. 2001:db8::1, 2001:db8::2, etc.)
+	- Also common to see two least significant 16-bit words set to small values (eg. 2001:db8::2:10)
+	- "not uncommon" for second-least significant 16-bit word to be in range 0x0000:0x00ff, and least significant to be in range 0x0000:0xffff
+
+	- Search space for low-byte addresses: 24 bits at most (only least-significant 6 bytes commonly change value)
+
+-----------------
+IPv4-based addresses:
+	- Can take two forms: IPv4 address encoded in lower two 16 bit words (eg. 2001:db8::192.0.2.1), or each IPv4 byte encoded as a separate 16-bit word (eg. 2001:db8::192:0:2:1)
+	- Search space is 2(2^32), since there are two common ways to represent IPv4 addresses in IPv6 IIDs
+
+-----------------
+Service-port addresses:
+	- All IID bits set to 0 except for bits specifying an in-use port number in the lowest-order 16-bit word
+	- Alternate forms: second lowest-order 16-bit word set to value in range 0x0000:0x00ff and lowest order word set to port number, and vice versa
+	- Address port could be encoded as decimal number or converted to hex equivalent
+
+	- RFC 7707 claims max of 20 popular service ports, and search space of 10(2^11) bits
+
+-----------------
+Wordy addresses:
+	- Difficult to make any claims about the size of the search space, but it could be possible to enumerate through them using dictionary attacks.
+
+-----------------
+IPv4/6 interop addresses:
+	- Teredo addresses have their IID generated using an observed IPv4 address and UDP port number
+	- Different interop techniques will have different search spaces
+
+-----------------
+==========================
+
+
+
+IPv6 address assignment patterns in real-world scenarios:
+
+NOTE: this RFC is from March 2016. Two of the studies cited here are from 2013, and one is from 2008 - there will *definitely* be changes to this, need to research further.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-----------------
+-----------------
+Relevant RFCs:
+- 7707: Network Reconnaissance in IPv6 Networks (obsoletes 5157)
+- 4941: Privacy Extensions for Stateless Address Autoconfiguration in IPv6
+- 7217: A Method for Generating Semantically Opaque Interface Identifiers with IPv6 Stateless Address Autoconfiguration (SLAAC)
+- 7721: Security and Privacy Considerations for IPv6 Address Generation Mechanisms
+
+-----------------
+Scoping
+- Networks can vary greatly in size:
+		- home-based networks with few devices (usually < 20?)
+		- enterprise/education networks with hundreds of machines
+		- thousands of devices reachable through a given autonomous system
+		- the Internet itself, millions of connected devices
+
+-----------------
+Use-cases:
+- System administrators looking to monitor IPv6 activity, run diagnostics, and check for unauthorised hosts
+- Network operators looking to perform similar operations, but on a larger scale to identify more general trends
+- Researchers looking to perform topology analysis and study of more general trends along with network operators
+- Malicious parties gathering network intel and locating potential target hosts
+
+-----------------
+Notes on this machine (Win10):
+
+Ethernet adaptor and wireless adaptor:
+- 2x IPv6 addresses (consistent for each reconnection)
+- 2x Temporary IPv6 addresses (different for each reconnection)
+- 1x Link-local IPv6 address
+- No IPv4 address given for wireless adaptor
+
+Two different IPv6 network prefixes appear to be in use - one IPv6 address and one temporary IPv6 address is allocated for each. Not sure why there are two prefixes in use.
+
+The same host identifier is used for both IPv6 addresses and the link-local address, indicating it has some basis in the host's MAC address.
+A different host identifier is used for both temporary IPv6 addresses.
+
+VirtualBox host-only network adaptor:
+- 1x Link-local IPv6 address
+- No lease
+
+No OUIs or MAC address information exposed in any of these addresses. It should still be possible to find this machine through a scan somehow, it'll just be a larger search space than 24 bits.
+
+
+
+
