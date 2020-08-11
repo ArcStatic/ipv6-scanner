@@ -1,0 +1,45 @@
+IPv6 Network Security with Scapy
+Instructor: Guillaume Valadon
+Course dates: 1/8/20 - 4/8/20
+
+
+\section{Background}
+
+In late July 2020, I applied for and was awarded a RingZer0 2020 RiskRecon scholarships, which funded my attendance at this course.
+The material was taught over 4 days, with lectures and live demo sessions being held in the evenings (GMT), and some lab exercises left for us to do in the time before the next meeting.
+
+The main focus of this course was on Scapy, a Python-based tool for writing custom packets and inspecting received data.
+Most of the lab exercises taught us how to correctly encapsulate packet types and to overwrite field defaults in order to provoke a specific response from a 'standard' recipient, like a router, or another client on the local network;
+some examples included impersonating a router using IPv6 Router Advertisement messages, a basic IPv6 DoS attack by falsely claiming ownership of an address sent over a Router Solicitation message, and replicating CVE-2019-5597 to crash an OpenBSD system through misuse of IPv6 header extensions.
+
+
+\section{Relevance to the PhD}
+This course was helpful for learning how to perform IPv6-based exploitation on a local network: 
+once an attacker has access to a host on a local network, it's easy to gain the IPv6 address for every other reachable host by pinging the default IPv6 local multicast address, \texttt{ff02::1}.
+This renders the local scanning section of my PhD project redundant once an attacker has access to the local network, however,
+they still need to locate a device as an initial point of entry.
+This could be achieved through approaches like tricking users into running suspicious files on more complex devices, like smartphones and laptops,
+but I believe that IoT devices are a viable point of entry into a local network through automated IPv6 scanning:
+these devices are intentionally exposed to the wider Internet to allow users remote access from other networks
+(eg. customers with smart cameras might want to see captured movement while they're away from home),
+and will likely have a global IPv6 address with an exposed MAC address, making them relatively easy to locate.
+They are also often left with default credentials, allowing malicious parties easy access to local networks after they've been located through Internet-wide scans.
+
+I strongly suspect that IoT devices are unlikely to implement secure addressing schemes, such as semantically opaque SLAAC addresses, due to hardware constraints.
+Instead, they will probably use schemes like IEEE identifier-based SLAAC addressing, which uses the MAC address of the device's network interface card to generate an IPv6 address.
+IEEE identifier-based addresses have 40 bits which are easily predictable: 24 bits are a publically available organisationally unique identifier (OUI), and 16 bits set to the constant \texttt{0xfffe}.
+The remaining 24 bits, which are the non-OUI half of the device's MAC address, still need to be searched.
+Domestic ISPs appear to lease /56 IPv6 prefixes to their customers for domestic, home-based networks.
+An 8-bit search to find a live domestic network prefix, followed by a 24-bit search to complete the interface identifier, is entirely feasible for gaining access to a domestic network;
+the 255 possible choices for the network prefix are trivial to iterate through, and the 24-bit scan following the discovery of a live network can be completed in a matter of minutes.
+This would allow attackers to gain local access to home networks with at least one IoT device,
+safe in the knowledge that the network is unlikely to be overseen by anyone with the technical knowledge to detect this initial compromise, and any subsequent exploitation.
+
+Scapy will be a valuable tool for automating initial proof-of-concept scans for initial experiments in this PhD;
+there are functions dedicated to converting between MAC addresses, manufacturers, and IPv6 addresses,
+which will make it easier to both perform scanning and to document findings in terms of any patterns found in terms of device manufacturers
+(eg. do specific manufacturers consistently use IEEE identifier-based addressing schemes or have a habit of assigning unnecessary global IPv6 addresses?).
+
+The ability to overwrite specific fields in pre-existing packet types will also help in writing an IPv6 scanner which is easy to understand and debug at a glance;
+a custom-written C or Rust-based scanner would be much faster, but could easily lead to mistakes and oversights while I'm still trying to understand the problem domain.
+I will aim to implement these later when I have a better understanding of how these batch scans work in practice using Scapy.
