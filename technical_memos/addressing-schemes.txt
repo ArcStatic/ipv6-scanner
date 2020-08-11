@@ -2,7 +2,7 @@ Research question:
 Is it possible to find which IPv6 addresses are in use on a given network?
 
 Sub-questions:
-How can I find which IPv6 addresses are in use for each addressing scheme?
+How can I find which IPv6 addresses are in use for each of the following addressing schemes?
 
 IPv6 addressing schemes:
 - SLAAC
@@ -35,7 +35,7 @@ IEEE identifiers:
 
 Search space for SLAAC assigned IPv6 address using IEEE identifiers/OUIs: 24 bits
 Strongly suspect this is the system used for address assignment in IoT devices.
-Potentially could still access mainstream general-purpose OSes using this scheme?
+Most mainstream OSes not using this - semantically opaque IIDs used instead.
 
 -----------------
 IIDs for virtual machines:

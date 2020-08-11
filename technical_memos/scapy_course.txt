@@ -43,3 +43,9 @@ which will make it easier to both perform scanning and to document findings in t
 The ability to overwrite specific fields in pre-existing packet types will also help in writing an IPv6 scanner which is easy to understand and debug at a glance;
 a custom-written C or Rust-based scanner would be much faster, but could easily lead to mistakes and oversights while I'm still trying to understand the problem domain.
 I will aim to implement these later when I have a better understanding of how these batch scans work in practice using Scapy.
+
+
+
+
+
+TODO: Guillaume seemed interested in discussing my PhD work further over email. Need to organise a summary to email ideally by next week.

@@ -1,0 +1,30 @@
+DEF CON 28: Safe Mode
+7/8/20 - 9/8/20
+
+Due to the ongoing pandemic, DEF CON was held remotely in 2020 for the first time in its 28 year history.
+This was an ideal chance to remotely participate in an event which would normally not have been accessible due to travel costs.
+
+
+\section{IoT Village}
+- Participated in IoT hacking 101 labs which highlighted how easy it is to find hard-coded credentials in the firmware of IoT devices.
+This further reinforces the idea that an IoT device would be a compelling choice of target for initial entry into a local network,
+in addition to these devices probably being easy to locate due to the use of insecure, MAC address-based IPv6 addressing schemes.
+
+
+- Sent an email about potential collaboration with the hosts of the interactive IoT hacking demos, Village Idiot Labs.
+VIL are a Canadian non-profit organisation which aims to promote awareness of security risks in IoT devices.
+There may be scope for collaboration here, depending on which datasets and resources are available - 
+access to a wide range of IoT firmware would allow me to identify which devices are actually using IPv6,
+and to assess the capabilities of any existing IPv6 stacks (global vs link-local addresses, addressing schemes, etc).
+The collection of IPv6 pcap files from the Imperial and Northeastern IoT labs can shed some light on this through IPv6 addresses observed attached to data in transit,
+but looking at the firmware directly can provide more detailed answers about the (lack of) security in IoT-specific IPv6 stacks.
+
+
+- The 'Hacking the Supply Chain' talk explored the issue of the unknowing reuse of a specific TCP/IP library in IoT devices.
+The vulnerabilities outlined in this talk are not relevant to the PhD, but the issue of library reuse and the lack of oversight in device production is important:
+one flawed IPv6 stack could be used in many difficult to patch devices, especially given that IPv6 has a reputation for being difficult to implement from scratch.
+It could be worth exploring a collection of IoT firmware samples featuring IPv6 stacks to identify similarities which imply reuse
+(ie. is the same IPv6 stack being used by different manufacturers, or do they write their own?)
+
+
+ 
