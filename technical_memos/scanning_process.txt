@@ -1,0 +1,113 @@
+How are IPv6 scans actually conducted?
+
+
+1. Get prefixes from BGPStream data (a prefix monitoring example program available as tutorial on the site).
+A single collector only provides a single perspective of BGP advertisements, so many addresses will be omitted,
+however, these aim of these scans is not to construct a complete collection of IPv6 addresses:
+instead, the aim is to find enough potential hosts to exploit.
+Prefix advertisements observed by a single collector may be enough to achieve this, depending on how long prefixes remain live,
+but if prefixes are found to be short-lived (ie. less than a few hours), collecting data over shorter timeframes and a larger number of collectors might produce a more responsive dataset.
+
+
+2. Filter prefixes obtained to remove any duplicate values, so that only unique values remain.
+More than one advertisement can be made for a single prefix;
+this becomes more likely as the timeframe for scraping observed BGP data increases.
+For longer timeframes, make sure to remove prefixes which have been withdrawn.
+
+TODO: more reading to figure out how long a prefix is likely to remain live).
+
+
+3. Select the most 'promising' prefixes to scan for liveness.
+This heavily depends on the type of network the user is trying to contact:
+for example, an attacker might be prioritising routers issued by a specific ISP, and would therefore look for prefixes associated with the autonomous system number belonging to that ISP.
+Or, alternatively, they might only be interested in scanning relatively short prefixes, and would select prefixes with a mask of /56 or more.
+This step is highly variable, since targets vary greatly between attacks.
+The only constant is that choices have to be made: unlike the 32-bit IPv4 address space, it is impossible to scan the entire 128-bit IPv6 address space, so subsections need to be chosen carefully.
+
+TODO: establish whether there are patterns in prefix allocation that can be exploited
+(ie. can we find better starting points than simply starting from 0 for the missing bits in a prefix?)
+Looking through chains of prefixes might be helpful:
+eg. are subprefixes within a larger prefix issued at fixed, regular intervals? (ISPs might do this when issuing home routers)
+
+
+4. Scan through the unknown bits remaining in the prefix selected, potentially with an offset if patterns have been identified in step 3.
+For a standard 64-bit IPv6 network prefix, this will be 64 - X, where X is the mask specified in the IPv6 prefix advertised through BGP announcements.
+For example, Sky, a UK ISP, seems to allocate /56 prefixes; this would leave 8 bits to scan for a live network.
+
+For each iteration of the unknown bits, an attempt to send traffic should be made.
+There are three possible responses to this traffic, for (almost?) any protocol: allowed, blocked, and unresponsive.
+The first two indicates that a network prefix is live, while only the last outcome, unresponsive, signifies that a prefix is inactive or otherwise unreachable.
+An arbitrary number of attempts should be made to contact a given network prefix (50?);
+the interface identifier used for the second half of the IPv6 address can be arbitrarily selected at this point, as hosts do not need to be valid to elicit a response indicating liveness from the router acting as the gateway to the local network we are attempting to contact.
+The destination port can also be arbitrarily selected, but will likely be set to the port number for the service being targeted (eg. TCP 23 for telnet, UDP 53 for DNS).
+
+If a given iteration of a network prefix is unresponsive for all of these attempts, mark it as inactive and move to the next iteration;
+if any responses indicate that the traffic was permitted or actively blocked, there is an active, reachable network with this 64-bit prefix: proceed to step 5.
+
+
+5. For a responsive 64-bit network prefix identified in step 4, identify at least one remotely accessible host on this network.
+
+Interface identifiers (IIDs) are the latter 64 bits of an IPv6 address, used to differentiate between hosts on a local network.
+There are several addressing schemes which need to be considered:
+- IEEE identifier-based addresses
+- address generation for virtual machines
+- temporary addresses
+- Constant semantically opaque addresses
+- Stable semantically opaque addresses
+- Dynamic Host Configuration Protocol v6 (DHCPv6) allocated addresses
+- Manually allocated addresses
+
+Most mainstream operating systems for complex, multi-purpose devices like laptops, smartphones, desktops, etc.
+use a combination of temporary addresses, constant semantically opaque addresses, and stable semantically opaque addresses,
+all of which intentionally obscure MAC address info and should not follow a predictable pattern.
+Temporary addresses are newly generated upon initial connection to a local network, and reset every 24 hours.
+stable semantically opaque addresses are generated when first connecting to a network;
+they persist through system restarts, and change when a device moves to a different local network (ie. somewhere with a different IPv6 network prefix).
+Constant semantically opaque addresses are also allocated upon first connection to an IPv6-enabled network and persist through system restarts,
+but do not change when moving to a different local network; they are effectively permanent unless the OS is reinstalled.
+
+
+Addresses assigned in these three schemes are generated cryptographically; any traceable patterns are due to flaws in a specific implementation, rather than inherent in the addressing schemes themselves.
+It may be possible to find patterns in some IPv6 stacks using weak random number generation, but these patterns will take some time to find, if they exist at all.
+Unless a pattern is found in a specific implementation, the search space for temporary addresses, and both variants of semantically opaque addresses should be assumed to be 64 bits:
+it is not feasible to search for addresses allocated by these schemes.
+
+However, IoT devices, if they implement IPv6, will likely use the IEEE identifier-based SLAAC addressing scheme, where the IPv6 address for a given interface is derived from the MAC address of its network interface card;
+this is due to custom-written firmware for devices with constrained physical resources, where it is difficult to implement a robust random number generator for creating temporary or semantically opaque addresses securely.
+As a result, IoT devices are likely to be the easiest hosts to locate:
+IEEE identifier-assigned addresses follow predictable patterns, and have a much smaller search space than temporary and semantically opaque addressing schemes.
+
+A device with an IEEE identifier-based SLAAC address would have the first 24 bits of its IID set to an organisationally unique identifier (OUI) value, which is publicly accessible through the IEEE website;
+this is the first half of the interface's MAC address.
+The following 16 bits are set to the constant 0xFFFE.
+The remaining 24 bits are the second half of the interface's MAC address and the final 24 bits of the interface's full IPv6 address;
+there are therefore n(2^24) possibilities to iterate through, where n is the number of OUIs the attacker wants to scan for.
+This is a feasible space to scan in a relatively short time (between minutes and hours, depending on how stealthy the scan needs to be).
+
+DHCPv6 addresses can be allocated sequentially, in which case the search space is relatively straightforward:
+keep scanning for hosts incrementally until detecting several unresponsive addresses in a row.
+There may be an offset for the initial starting address,
+eg. the first IPv6 address allocated may be 2001:db8::4000 instead of 2001:db8::1.
+
+DHCPv6 best practice recommends that IIDs are allocated at random from the 64-bit space to prevent active scanning;
+a network using DHCPv6 with randomised address allocation has a 64-bit search space and cannot be exhaustively scanned in a feasible amount of time.
+
+Manually allocated addresses could also be allocated sequentially, with lower-order bits being incremented for new addresses.
+This is most commonly done in the final two 16-bit 'words' of an IPv6 address, meaning that at worst, there is a 32-bit search space for this variant of manual addressing;
+this is the same as the IPv4 address space, and could be completed in a feasible amount of time.
+This is also the case for the manual allocation of IPv6 addresses containing the interface's IPv4 address.
+Narrowing down the search space for the convention of giving 'wordy' IPv6 addresses to hosts (eg. 2001:db8::c0:ffee:cafe, 2001:db8::dead:beef, 2001:db8::be:5afe) is somewhat more difficult;
+there is a lot of scope for creativity across many languages with hex-based addresses.
+Wordy addresses could be searched through the use of modified dictionary attacks, but it is difficult to make any claims about how long this might take without further research.
+
+As in step 4, probing traffic could generate one of three responses: allowed, blocked, and unresponsive.
+An arbitrary number of attempts to elicit a response from a specific device should be made, but will likely be kept to a minimum to avoid raising suspicion with the operator of the local network.
+At this point in time, IEEE identifier-based SLAAC addresses which contain the MAC address of the host's network interface card are the most likely to be responsive;
+this will be updated with more patterns in address allocation schemes as they are found.
+
+6. Once a responsive host is found, the attacker is free to direct whichever traffic they like at the newly found target.
+This initial host, if compromised, will allow access to the rest of the local network, where local IPv6-based host location will be much easier through the use of local multicast addresses.
+The attacker can then return to step 4 and continue to iterate through other potential live prefixes, repeating steps 4 and 5 as necessary.
+
+
+
