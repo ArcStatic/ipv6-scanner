@@ -13,17 +13,6 @@ While a range of 2^128 possible addresses solves architectural problems caused b
 
 This project focuses on potential IPv6 scanning strategies from the perspective of malicious parties, rather than network administrators - there are interesting questions about how much data can be obtained about a host from its IPv6 address, and whether attacks might actively want to switch to using IPv6 scans if this exposed information turns out to have an economic or opsec benefit for malware-as-a-service or pay-per-install operations.
 
-## Summary of Findings so Far
-* [RFC 7707](https://tools.ietf.org/html/rfc7707) contains a lot of valuable information on reconnaissance in IPv6 networks
-* [zmap extensions](https://github.com/tumi8/zmap) are available for scanning IPv6 addresses
-* 6Gen and Entropy/IP are tools used for generating potential IPv6 targets - not clear on the methods they use to generate these lists as yet
-* If a device on a local network is infected through some other vector (eg. infected email attachment), the malicious application would know the network prefix which is in use - this reduces the search space from 128 bits to 64 bits
-* Bytes 0, 1, and 2 are an Organisationally Unique Identifier (OUD) - this is the first half of the MAC address used by the network interface card (NIC) with this IPv6 address
-* Bytes 3 and 4 of the IID half of an IPv6 address are always set to 0xfffe, reducing the search space by a further 16 bits
-* The search space is reduced to n(2^24) bits, where n different types of NICs are being searched for - only the last 24 bits need to be searched exhaustively (ie. the last half of the interface's MAC address)
-* Privacy addresses mask the true MAC address of outgoing traffic, mitigating the impact of passive surveillance, but may not provide protection against active scanning attacks if they are just an alias for the SLAAC address (currently think this is the case, need to investigate this)
-
-
 ## Recently Completed Tasks
 * Set up repo and readme
 * Got wandio working
