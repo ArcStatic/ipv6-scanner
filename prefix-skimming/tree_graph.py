@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import matplotlib.transforms as mtransforms
-import matplotlib.patches as mpatch
+import matplotlib.patches as patch
 import matplotlib.lines as lines
 import sys
 import ipaddress
@@ -20,10 +20,18 @@ root_nodes = process_data(sys.argv[1])
 ipv6_ints = []
 ipv6_masks = []
 
-plt.figure(figsize=(12,20))
+fig = plt.figure(figsize=(12,20))
+ax = fig.add_subplot(111)
+#fig,ax = plt.subplots(1)
 
 for k, v in root_nodes.items():
     print("%s: %d" % (k,int(v.addr.network_address)))
+    print("Final addr in block: %s" % v.addr[-1])
+    print("Gap: %d\n" % (int(v.addr[-1]) - int(v.addr.network_address)))
+    #create a rectangle which encompasses all possible addresses which could be allocated within a given advertisement
+    #v.addr[-1] is the last valid address in a range (ie. all free bits set to 1/free hex values set to f)
+    rect = patch.Rectangle((v.addr.prefixlen, int(v.addr.network_address)), (128 - v.addr.prefixlen), (int(v.addr[-1]) - int(v.addr.network_address)), alpha=0.4, color="red")
+    ax.add_patch(rect)
     ipv6_ints.append(int(v.addr.network_address))
     ipv6_masks.append(v.addr.prefixlen)
     add_child_nodes(v, ipv6_masks, ipv6_ints)
@@ -38,7 +46,8 @@ plt.xlabel("Advertised Prefix Length")
 plt.ylabel("Set Values of Advertised IPv6 address")
 plt.xlim((15, 65))
 
-plt.plot(ipv6_masks, ipv6_ints, 'r+')
+plt.plot(ipv6_masks, ipv6_ints, 'r+', alpha=0)
+
 ylocs, ylabels = plt.yticks()
 
 
