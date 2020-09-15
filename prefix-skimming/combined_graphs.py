@@ -107,29 +107,8 @@ for i in range(1,7):
         ylabels[i] = str(ipaddress.IPv6Address(int(ylocs[i])))
     plt.yticks(ylocs, ylabels)
 
+fig.suptitle("Distribution of IPv6 address allocations according to BGP advertisements")
 
 plt.savefig("graphcombined.png", bbox_inches="tight")
-
-'''
-#==================
-#lines on figure
-#spacing = 1.2
-#figheight = (spacing * 10 + 1)
-#fig = plt.figure(figsize=(4 / 1.5, figheight / 1.5))
-fig = plt.figure(figsize=(50,50))
-fontsize = 40
-addr = "db8:2001::1"
-
-
-# x, y vals: scale 0 - 1.0 (increase -> higher/to the right)
-fig.text(0.5, 0.5, addr, size=fontsize, bbox=dict(facecolor="red", alpha=0.5))
-#draw single line between points
-l1 = lines.Line2D([0.1, 0.1], [0, 1], lw=5, transform=fig.transFigure, figure=fig)
-fig.lines.extend([l1])
-
-fig.savefig("matplot.png")
-'''
-
-
 
 
