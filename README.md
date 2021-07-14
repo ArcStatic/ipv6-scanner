@@ -49,7 +49,7 @@ Note: the only probe traffic I have tested so far is ICMPv6 Echo Request
 ## Current Questions
 #### ie. smaller stuff which could maybe be another sub-project within the PhD
 #### IPv6
-* Which factors would encourage/force malware authors to use IPv6 scanning over IPv4 scans? Full migration to IPv6 will take decades and legacy use of IPv4 will likely continue, but additional data supplied by IPv6 addresses (eg. MAC addresses) could provide quieter, more targeted scanning capabilities.
+* Which factors would encourage/force malware authors to use IPv6 scanning over IPv4 scans? Full migration to IPv6 will take decades and legacy use of IPv4 will likely continue, but additional data supplied by IPv6 addresses (eg. MAC addresses) and address persistence could provide new incentives.
 * Can a SLAAC-assigned IID still be contacted even when a device has been given a privacy address (ie. is it a replacement for a SLAAC address or just an alias)?
 	* ANSWER: many mainstream OSes seem to assign an ephemeral IPv6 privacy address alongside a privacy address which remains stable between reboots. The ephemeral address is used for outgoing traffic, but the stable privacy address is still responsive to incoming traffic if you can find it somehow.
 * Which heuristics can be exploited for IPv6 scans on networks which do not assign SLAAC addresses (eg. are there any predictable patterns in RNG used to generate privacy addresses)? 
