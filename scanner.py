@@ -179,7 +179,7 @@ def rate_limit_send(run_time, current_pkt_rate, max_pkt_rate, addr, src_addr):
     #ie. do endpoints have >1s timeout gaps or is the granularity in seconds?
     #for i in range(run_time * current_pkt_rate):
         for pkt in range(current_pkt_rate):
-            host_iteration = ipaddress.IPv6Address(addr + ((pkt+1) * (sec+1))
+            host_iteration = ipaddress.IPv6Address(int(addr) + pkt + (sec * current_pkt_rate))
             print(host_iteration)
             
             #genuine OUI testing
@@ -207,7 +207,7 @@ def rate_limit_send(run_time, current_pkt_rate, max_pkt_rate, addr, src_addr):
     #wait 1 min before next rate limit test (allow rate-limit blocks to expire)
     #TODO: test with 15 min gaps, see if this improves success rates
     #print(send_recv_pairs)
-    time.sleep(60)
+    time.sleep(10)
     fname = "sendto_nwpfx{addr}_pktrate{pkt_rate}_runtime{run_time}_max{max_pkt_rate}".format(addr=str(host_iteration).replace(":","-"), pkt_rate=current_pkt_rate, run_time=run_time, max_pkt_rate=max_pkt_rate)
     f = open(fname, "w")
     for pair in send_recv_pairs:
@@ -215,7 +215,7 @@ def rate_limit_send(run_time, current_pkt_rate, max_pkt_rate, addr, src_addr):
         #dst addrs increment by 1 each time to track specific responses
         f.write("src {src},dst {dst}\n".format(dst=pair[0], src=pair[1]))
     f.close()
-    rate_limit_send(run_time, current_pkt_rate+1, max_pkt_rate)
+    rate_limit_send(run_time, current_pkt_rate+1, max_pkt_rate, addr, src_addr)
 
 
 
@@ -229,6 +229,6 @@ def convert_oui(oui):
 
 recv_thread = threading.Thread(target=recv_non_unreachable_async, args=[1])
 #send_thread = threading.Thread(target=iterate_interface_identifier_no_reply, args=(None, ""))
-send_thread = threading.Thread(target=rate_limit_send, args=(5, 1, 60, sys.argv[1], sys.argv[2]))
+send_thread = threading.Thread(target=rate_limit_send, args=(5, 1, 60, ipaddress.IPv6Address(sys.argv[1]), sys.argv[2]))
 recv_thread.start()
 send_thread.start()
