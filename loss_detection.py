@@ -22,6 +22,7 @@ def check_response_eq(send_f, recv_f):
             print("Response received from %s" % item)
         else:
             print("No response received for %s" % item)
+    print("Number sent: {sent_num}\nNumber received: {recv_num}\nResponse rate: {resp_rate}".format(sent_num=len(sent_pkts), recv_num=len(recv_pkts), resp_rate=(len(recv_pkts)/len(sent_pkts))*100))
 
 #remove this, just here for familiarity for now
 #use to check if losses are consistent
