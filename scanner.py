@@ -1,4 +1,4 @@
-from scapy.all import sr1,IPv6,ICMPv6EchoRequest, ICMPv6EchoReply, ICMPv6DestUnreach, AsyncSniffer, send, IPerror6, raw
+from scapy.all import sr1,IPv6,ICMPv6EchoRequest, ICMPv6EchoReply, ICMPv6DestUnreach, AsyncSniffer, send, IPerror6, raw, Raw, sendp, Ether
 #from scapy import *
 
 import sys
@@ -31,7 +31,10 @@ def iterate_bgp_prefix_non_loop(prefix, pfx_timeout):
 
 def iterate_bgp_prefix(fname, pfx_timeout):
     pfx_file = open(fname, "r")
-    sock = socket.socket(socket.AF_INET6, socket.SOCK_RAW, socket.IPPROTO_RAW)
+    sock = socket.socket(socket.AF_INET6, socket.SOCK_RAW, socket.getprotobyname('icmp'))
+    #sock = socket.socket(socket.AF_INET6, socket.SOCK_RAW, socket.IPPROTO_RAW)
+    #sock.bind(("eth0", 10000))
+    #sock.bind(("::1", 10000))
     for pfx in pfx_file:
         print("prefix to scan: {prefix}".format(prefix=pfx))
         prefix = ipaddress.IPv6Network(pfx[:-1])
@@ -46,13 +49,22 @@ def iterate_bgp_prefix(fname, pfx_timeout):
                 #only interested in network half of prefix
                 #shift i left 64 bits so only this half of the address is searched
                 #use arbitrary value 1 for host identifier half
-                prefix_iteration = prefix.network_address + (i << 64) + 1   
+                prefix_iteration = prefix.network_address + (i << 64) + 1
+                print(prefix_iteration)
+                #icmp_pkt = IPv6(dst=str(prefix_iteration))/ICMPv6EchoRequest()
+                #icmp_pkt = raw(ICMPv6EchoRequest())
                 icmp_pkt = raw(IPv6(dst=str(prefix_iteration))/ICMPv6EchoRequest())
+                #icmp_pkt = raw(Ether()/IPv6(dst=str(prefix_iteration))/ICMPv6EchoRequest())
+                #icmp_pkt = Ether()/IPv6(dst=str(prefix_iteration))/ICMPv6EchoRequest()
+                #print(icmp_pkt.layers())
                 #print(icmp_pkt)
+                #print(icmp_pkt.haslayer(Raw))
                 #print("sent bgp pfx iteration: {pfx}".format(pfx=prefix_iteration))
                 #send(icmp_pkt, inter=0, verbose=False)
+                #send(icmp_pkt, inter=0, verbose=False, socket=sock)
                 #sock.sendto(b"hello", (str(prefix_iteration), 10000))
                 sock.sendto(icmp_pkt, (str(prefix_iteration), 10000))
+                #sock.send(icmp_pkt)
 
             print("end time: {e_time}".format(e_time=datetime.datetime.now()))
             print("%d pkts sent" % (2**(64 - prefixlen)))
@@ -364,6 +376,9 @@ def convert_oui(oui):
 #send_thread = threading.Thread(target=iterate_interface_identifier_no_reply, args=(None, ""))
 #send_thread = threading.Thread(target=rate_limit_send, args=(5, 1, 60, ipaddress.IPv6Address(sys.argv[1]), sys.argv[2], 10))
 #send_thread = threading.Thread(target=iterate_bgp_prefix, args=(test_pfx, 60))
+
 send_thread = threading.Thread(target=iterate_bgp_prefix, args=(sys.argv[1], 30))
+#send_thread = threading.Thread(target=iterate_bgp_prefix_scapy_sockets, args=(sys.argv[1], 30))
 #recv_thread.start()
 send_thread.start()
+
