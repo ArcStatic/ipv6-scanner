@@ -1,4 +1,5 @@
-from scapy.all import sr1,IPv6,ICMPv6EchoRequest, ICMPv6EchoReply, ICMPv6DestUnreach, AsyncSniffer, send, IPerror6, raw, Raw, sendp, Ether
+from scapy.all import sr1,IPv6,ICMPv6EchoRequest, ICMPv6EchoReply, ICMPv6DestUnreach, AsyncSniffer, send, IPerror6, raw, Raw, sendp, Ether, L3RawSocket
+from scapy.utils import PcapWriter
 #from scapy import *
 
 import sys
@@ -31,10 +32,13 @@ def iterate_bgp_prefix_non_loop(prefix, pfx_timeout):
 
 def iterate_bgp_prefix(fname, pfx_timeout):
     pfx_file = open(fname, "r")
-    sock = socket.socket(socket.AF_INET6, socket.SOCK_RAW, socket.getprotobyname('icmp'))
+    sock = socket.socket(socket.AF_INET6, socket.SOCK_RAW, socket.getprotobyname('ipv6-icmp'))
     #sock = socket.socket(socket.AF_INET6, socket.SOCK_RAW, socket.IPPROTO_RAW)
+    #sock.setsockopt(socket.SOL_IPV6, socket.IP_HDRINCL, 1)
     #sock.bind(("eth0", 10000))
     #sock.bind(("::1", 10000))
+    pcap = PcapWriter("output.pcap")
+    scapy_sock = L3RawSocket(iface="eth0")
     for pfx in pfx_file:
         print("prefix to scan: {prefix}".format(prefix=pfx))
         prefix = ipaddress.IPv6Network(pfx[:-1])
@@ -50,20 +54,33 @@ def iterate_bgp_prefix(fname, pfx_timeout):
                 #shift i left 64 bits so only this half of the address is searched
                 #use arbitrary value 1 for host identifier half
                 prefix_iteration = prefix.network_address + (i << 64) + 1
-                print(prefix_iteration)
+                #print(prefix_iteration)
                 #icmp_pkt = IPv6(dst=str(prefix_iteration))/ICMPv6EchoRequest()
                 #icmp_pkt = raw(ICMPv6EchoRequest())
-                icmp_pkt = raw(IPv6(dst=str(prefix_iteration))/ICMPv6EchoRequest())
+                #icmp_pkt = raw(ICMPv6EchoRequest())
+                addr_info = socket.getaddrinfo(str(prefix_iteration), 0, socket.AF_INET6, 0, socket.SOL_IP)
+                #print(addr_info[0][4])
+                
+                #icmp_msg = raw(IPv6(dst=str(prefix_iteration))/ICMPv6EchoRequest())
+                icmp_msg = raw(ICMPv6EchoRequest())
+                #icmp_msg = b'\x80\0\0\0\0\0\0\0'
+                
+                #data = b'\x80\0\0\0\0\0\0\0'
                 #icmp_pkt = raw(Ether()/IPv6(dst=str(prefix_iteration))/ICMPv6EchoRequest())
-                #icmp_pkt = Ether()/IPv6(dst=str(prefix_iteration))/ICMPv6EchoRequest()
+                #icmp_pkt = IPv6(dst=str(prefix_iteration))/ICMPv6EchoRequest()
                 #print(icmp_pkt.layers())
                 #print(icmp_pkt)
                 #print(icmp_pkt.haslayer(Raw))
                 #print("sent bgp pfx iteration: {pfx}".format(pfx=prefix_iteration))
                 #send(icmp_pkt, inter=0, verbose=False)
+                #send(icmp_pkt, inter=0, verbose=False, socket=scapy_sock)
                 #send(icmp_pkt, inter=0, verbose=False, socket=sock)
                 #sock.sendto(b"hello", (str(prefix_iteration), 10000))
-                sock.sendto(icmp_pkt, (str(prefix_iteration), 10000))
+                
+                #sock.sendto(icmp_msg, (str(prefix_iteration), 0, 0, 0))
+                sock.sendto(icmp_msg, addr_info[0][4])
+                
+                #sock.sendto(data, addr_info[0][4])
                 #sock.send(icmp_pkt)
 
             print("end time: {e_time}".format(e_time=datetime.datetime.now()))
@@ -134,13 +151,13 @@ def recv_thread_bgp_prefix(recv_timeout, pfx_addr):
             if i[ICMPv6DestUnreach].code == 3:
                 #print("Unreachable host {resp}, src {src}".format(resp=i[IPerror6].dst, src=i[IPerror6].src))
                 f.write("Unreachable host {resp},src {src_addr}\n".format(resp=i[IPerror6].dst, src_addr=i[IPerror6].src))
-                #print("Unreachable host {resp},src {src_addr}\n".format(resp=i[IPerror6].dst, src_addr=i[IPerror6].src))
+                print("Unreachable host {resp},src {src_addr}\n".format(resp=i[IPerror6].dst, src_addr=i[IPerror6].src))
             elif i.haslayer(ICMPv6EchoReply):
                 f.write("Echo Reply {resp}\n".format(resp=i[ICMPv6EchoReply].dst))
-                #print("Echo Reply {resp}\n".format(resp=i[ICMPv6EchoReply].dst))
+                print("Echo Reply {resp}\n".format(resp=i[ICMPv6EchoReply].dst))
             else:
                 f.write("Other: {resp}".format(resp=i.layers()))
-                #print("Other: {resp}".format(i.layers()))
+                print("Other: {resp}".format(i.layers()))
     f.close()
 
 
