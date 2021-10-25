@@ -22,8 +22,9 @@ int main(int argc, char** argv){
     struct icmp6_hdr *icmpv6_header;
     int sock;
     struct in6_addr dst_addr;
-    char *dst_str = argv[2];
     char *src_str = argv[1];
+    char *dst_str = argv[2];
+
 
     memset(pkt_buffer, 0, BUFSIZE);
     sock = socket(AF_INET6, SOCK_RAW, IPPROTO_ICMPV6);
@@ -38,11 +39,7 @@ int main(int argc, char** argv){
     ipv6_header = (struct ip6_hdr*) (pkt_buffer);
     icmpv6_header = (struct icmp6_hdr*) (pkt_buffer + sizeof(struct ip6_hdr));
 
-
-    //ipv6_header->ip6_ctlun.ip6_un2_vfc = ;
-    //ipv6_header->ip6_vfc = 70;
     //ipv6_header->ip6_vfc = 6 << 4;
-    //ipv6_header->ip6_dst = inet_pton(AF_INET6, dst_str, &(ip6));
     inet_pton(AF_INET6, dst_str, &(ipv6_header->ip6_dst));
     inet_pton(AF_INET6, src_str, &(ipv6_header->ip6_src));
     //set IP version to 6 (uint32_t, version is upper 4 bits)
@@ -89,7 +86,6 @@ int main(int argc, char** argv){
     printf("sockaddr: %p\nlen: %ld\n", &dst_sockaddr, sizeof(struct sockaddr));
     printf("sockaddr_in6: %p\nlen: %ld\n", &dst_sockaddr, sizeof(struct sockaddr_in6));
     printf("sock: %d\n", sock);
-    printf("buff: %d\n", pkt_buffer[0]);
     printf("pkt_len: %ld\n", pkt_len);
     printf("ipv6_header vfc: %" PRIu8 "\n", ipv6_header->ip6_vfc);
     printf("ipv6_header version (vfc): %" PRIu8 "\n", (ipv6_header->ip6_vfc) >> 4);   
