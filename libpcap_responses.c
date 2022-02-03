@@ -98,7 +98,7 @@ void traverse_leaf_nodes(struct addr_byte_node* node, struct capture_info* info)
 
 //add leaf node to existing tree
 //TODO: rename to something more descriptive
-void trace_addr_path(struct addr_byte_node* current_node, struct ip6_hdr* ipv6_header, struct icmp6_hdr* icmpv6_header, char* icmpv6_msg_str){
+void add_addr_path(struct addr_byte_node* current_node, struct ip6_hdr* ipv6_header, struct icmp6_hdr* icmpv6_header, char* icmpv6_msg_str){
 	
         //struct icmp6_hdr *icmpv6_header;
 	unsigned int oct_val;
@@ -214,7 +214,7 @@ void trace_addr_path(struct addr_byte_node* current_node, struct ip6_hdr* ipv6_h
 
 
 
-void print_packet_info(u_char *info, const u_char *packet, struct pcap_pkthdr packet_header) {
+void process_packets(u_char *info, const u_char *packet, struct pcap_pkthdr packet_header) {
   
   struct ether_header *eth_header;
   struct ip6_hdr *ipv6_header;
@@ -256,7 +256,7 @@ void print_packet_info(u_char *info, const u_char *packet, struct pcap_pkthdr pa
 	  
 	  //Check for Echo Reply
 	} else if (icmpv6_header->icmp6_type == 129){
-	  trace_addr_path(current_node, ipv6_header, icmpv6_header, "Echo Reply");
+	  add_addr_path(current_node, ipv6_header, icmpv6_header, "Echo Reply");
 	  i->echo_reply_count++; 
 	  i->current_pfx->info->echo_reply_count++; 
           i->total_resp_count++;
@@ -264,39 +264,39 @@ void print_packet_info(u_char *info, const u_char *packet, struct pcap_pkthdr pa
 	//Check for Time Exceeded
 	} else if (icmpv6_header->icmp6_type == 3){
 	  //printf("Time Exceeded\n");
-	  trace_addr_path(current_node, ipv6_header, icmpv6_header, "Time Exceeded");
+	  add_addr_path(current_node, ipv6_header, icmpv6_header, "Time Exceeded");
 	  i->time_exceeded_count++;
 	  i->total_resp_count++;
 	//Check for Destination Unreachable
 	} else if (icmpv6_header->icmp6_type == 1){
 	    //No Route
 	    if (icmpv6_header->icmp6_code == 0){
-	       trace_addr_path(current_node, ipv6_header, icmpv6_header, "No Route");
+	       add_addr_path(current_node, ipv6_header, icmpv6_header, "No Route");
 	       i->no_route_count++;
 	       i->current_pfx->info->no_route_count++;
 	    //Address Unreachable
 	    } else if (icmpv6_header->icmp6_code == 3){
-	       trace_addr_path(current_node, ipv6_header, icmpv6_header, "Address Unreachable");
+	       add_addr_path(current_node, ipv6_header, icmpv6_header, "Address Unreachable");
 	       i->address_unreachable_count++;
 	       i->current_pfx->info->address_unreachable_count++;
 	    //Communication with destination administratively prohibited
             } else if (icmpv6_header->icmp6_code == 1){
-	       trace_addr_path(current_node, ipv6_header, icmpv6_header, "Admin Prohibited");
+	       add_addr_path(current_node, ipv6_header, icmpv6_header, "Admin Prohibited");
 	       i->admin_prohibited_count++;
 	       i->current_pfx->info->admin_prohibited_count++;
 	    //Port Unreachable
             } else if (icmpv6_header->icmp6_code == 4){
-	       trace_addr_path(current_node, ipv6_header, icmpv6_header, "Port Unreachable");
+	       add_addr_path(current_node, ipv6_header, icmpv6_header, "Port Unreachable");
 	       i->port_unreachable_count++;
 	       i->current_pfx->info->port_unreachable_count++;
 	    //Reject Route to Destination
             } else if (icmpv6_header->icmp6_code == 6){
-	       trace_addr_path(current_node, ipv6_header, icmpv6_header, "Reject Route");
+	       add_addr_path(current_node, ipv6_header, icmpv6_header, "Reject Route");
 	       i->reject_route_count++;
 	       i->current_pfx->info->reject_route_count++;
 	    //Failed Ingress/Egress Policy
             } else if (icmpv6_header->icmp6_code == 5){
-	       trace_addr_path(current_node, ipv6_header, icmpv6_header, "Failed Policy");
+	       add_addr_path(current_node, ipv6_header, icmpv6_header, "Failed Policy");
 	       i->failed_policy_count++;
 	       i->current_pfx->info->failed_policy_count++;
             } else {
@@ -322,7 +322,7 @@ void print_packet_info(u_char *info, const u_char *packet, struct pcap_pkthdr pa
 
 
 void my_packet_handler(u_char *info, const struct pcap_pkthdr *packet_header, const u_char *packet_body){
-  print_packet_info(info, packet_body, *packet_header);
+  process_packets(info, packet_body, *packet_header);
 }
 
 int dir_loop(char *dirname, struct capture_info *info){
