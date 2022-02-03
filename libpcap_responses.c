@@ -12,8 +12,6 @@
 #include <dirent.h>
 #include <unistd.h>
 
-#define PFX_STR_SIZE 15
-
 struct capture_info {
     int total_resp_count;
     int echo_req_count;
@@ -91,7 +89,7 @@ void traverse_leaf_nodes(struct addr_byte_node* node, struct capture_info* info)
        current_node = node->descendents;
        //printf("non-leaf: %d\n", current_node->bit_val);
        while(current_node){
-           check_for_leaf(current_node, info);
+           traverse_leaf_nodes(current_node, info);
 	   current_node = current_node->next; 
        }
     }
@@ -202,6 +200,7 @@ void trace_addr_path(struct addr_byte_node* current_node, struct ip6_hdr* ipv6_h
 	  //if this is a leaf node, add ICMPv6 response type
 	  if (ip6_byte == 7){
 	    //TODO: find a neater way of allocating mem for string
+	    //TODO: refactor to allocate icmpv6 code to leaf addr_byte_node instead of string?
             icmpv6_str = (char*) malloc(20);
 	    //strcpy(icmpv6_str, "ICMPv6 Placeholder");
 	    strcpy(icmpv6_str, icmpv6_msg_str);
@@ -218,7 +217,6 @@ void trace_addr_path(struct addr_byte_node* current_node, struct ip6_hdr* ipv6_h
 void print_packet_info(u_char *info, const u_char *packet, struct pcap_pkthdr packet_header) {
   
   struct ether_header *eth_header;
-  int ipv6_header_length;
   struct ip6_hdr *ipv6_header;
   struct icmp6_hdr *icmpv6_header;
   eth_header = (struct ether_header *) packet;
@@ -229,18 +227,12 @@ void print_packet_info(u_char *info, const u_char *packet, struct pcap_pkthdr pa
   i = (struct capture_info *) info;
   int oct_val = 0;
   struct addr_byte_node* current_node;
-  struct addr_byte_node* new_desc;
   
   //printf("Current_node not allocated yet \n");
   current_node = i->addr_tree_root;
   //printf("Current_node allocated \n");
   
   struct pfx *new_pfx;
-
-  char icmpv6_str[50];
-
-  char ipv6_addr_str[100];
-  char ipv6_str_slice[15];
 
   if (ntohs(eth_header->ether_type) == ETHERTYPE_IP) {
     printf("IP\n");
@@ -251,53 +243,21 @@ void print_packet_info(u_char *info, const u_char *packet, struct pcap_pkthdr pa
   } else if (ntohs(eth_header->ether_type) == ETHERTYPE_IPV6) {
       //ICMPv6 payload
       if (ipv6_header->ip6_nxt == 58) {
-        inet_ntop(AF_INET6, &ipv6_header->ip6_src, ipv6_addr_str, 100);
-        
-        if (i->current_pfx->pfx_addr == NULL){
-	  //
-	  //i->current_pfx->pfx_addr = (char*) malloc(PFX_STR_SIZE);
-	  //strcpy(i->current_pfx->pfx_addr, ipv6_str_slice);
-	} else if (strcmp(i->current_pfx->pfx_addr, ipv6_str_slice) != 0){
-	//} else if (i->current_pfx->pfx_addr != *(ipv6_str_slice)){
-	  new_pfx = (struct pfx*) malloc(sizeof(struct pfx));
-	  i->current_pfx->next = new_pfx;
-	  new_pfx->prev = i->current_pfx;
-	  i->current_pfx = new_pfx;
-	  i->current_pfx->pfx_addr = (char*) malloc(PFX_STR_SIZE);
-	  strcpy(i->current_pfx->pfx_addr, ipv6_str_slice);
-	  i->current_pfx->info = (struct capture_info*) malloc(sizeof(struct capture_info));
-	}	
-        //printf("Slice: %s\n", i->current_pfx->pfx_addr);
-        //printf("Str slice: %s\n", ipv6_str_slice);
 
-//printf("ICMPv6\n");
+        //printf("ICMPv6\n");
 	//printf("type: %d, ", icmpv6_header->icmp6_type);
-	//Check for Echo Request
 	
-      
-	//trace_addr_path(current_node, ipv6_header, "Echo Reply");
-      
+	//Check for Echo Request
         if (icmpv6_header->icmp6_type == 128){
 	  //printf("Echo Req\n");
 	  i->echo_req_count++;
 	  i->current_pfx->info->echo_req_count++;
 	  //not a response, this is an outgoing probe
-          //i->total_resp_count++;
-	
-	  
 	  
 	  //Check for Echo Reply
 	} else if (icmpv6_header->icmp6_type == 129){
-	  //no print -> segfault
-	  //printf("Echo Reply\n");
-          //strcpy(icmpv6_str, "Echo Reply");
-	  //printf("\n---------------\nAddr: %s\n", ipv6_addr_str);
-	  //trace_addr_path(current_node, ipv6_header, icmpv6_str);
-	  //printf("main: ip6: %p, icmp6: %p\n", ipv6_header, icmpv6_header);
 	  trace_addr_path(current_node, ipv6_header, icmpv6_header, "Echo Reply");
-	  //printf("trace complete\n");
 	  i->echo_reply_count++; 
-	  //printf("i->referenced\n");
 	  i->current_pfx->info->echo_reply_count++; 
           i->total_resp_count++;
           i->current_pfx->info->total_resp_count++;
