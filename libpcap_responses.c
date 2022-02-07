@@ -25,7 +25,8 @@ struct capture_info {
     int failed_policy_count;
     int duplicate_probe_count;
     struct pfx* current_pfx;
-    struct addr_byte_node* addr_tree_root;
+    struct addr_byte_node* send_tree_root;
+    struct addr_byte_node* recv_tree_root;
 };
 
 struct pfx {
@@ -52,6 +53,7 @@ struct addr_byte_node {
 void traverse_leaf_nodes(struct addr_byte_node* node, struct capture_info* info){
     struct addr_byte_node* current_node = NULL;
 
+    //printf("traverse starting...\n");
     //if no descendents, this is a leaf node
     if (node->descendents == NULL){
         // add stat to info
@@ -74,12 +76,12 @@ void traverse_leaf_nodes(struct addr_byte_node* node, struct capture_info* info)
 	} else if (strcmp(node->icmpv6_msg, "Echo Request") == 0){
 	        info->echo_req_count++;
 	}
+	//TODO: this assumes all duplicates have the same response type, need to log different responses for same addr
 	info->total_resp_count++;
 	info->duplicate_probe_count += node->duplicate_count;
 	//printf("leaf: %s, %d\n", node->icmpv6_msg, node->bit_val);
 	
 	if (node->duplicate_count > 0){
-	     printf("leaf: %s, %d, duplicate count: %d\n", node->icmpv6_msg, node->bit_val, node->duplicate_count);
 	     unsigned char ipv6_pfx_bytes[16];
 	     char ipv6_addr_str[50];
 	     for (int i = 7; i >= 0; i--){
@@ -94,6 +96,7 @@ void traverse_leaf_nodes(struct addr_byte_node* node, struct capture_info* info)
 
              inet_ntop(AF_INET6, ipv6_pfx_bytes, ipv6_addr_str, 50);
 	     printf("Addr: %s\n--------\n", ipv6_addr_str);
+	     printf("leaf: %s, %d, duplicate count: %d\n", node->icmpv6_msg, node->bit_val, node->duplicate_count);
 	}
 	
 	/*
@@ -134,11 +137,17 @@ void add_addr_path(struct addr_byte_node* current_node, struct ip6_hdr* ipv6_hea
 	icmpv6_str = NULL;
 
 	for (int ip6_byte = 0; ip6_byte < 8; ip6_byte++){
-	  //for Echo Reply, dst field is the same as the intended probe target
+	  //for Echo Reply, src field is (usually) the same as the intended probe target
 	  if (icmpv6_header->icmp6_type == 129){
   	    oct_val = ipv6_header->ip6_src.s6_addr[ip6_byte];
 	    if (ip6_byte == 0){
-	      printf("Reply sender: %s\n", inet_ntop(AF_INET6, &ipv6_header->ip6_src.s6_addr, ip6_addr_str, 50));
+	      //printf("Reply sender: %s\n", inet_ntop(AF_INET6, &ipv6_header->ip6_src.s6_addr, ip6_addr_str, 50));
+	    }
+	  //for Echo Request, record target from src addr
+	  } else if (icmpv6_header->icmp6_type == 128){
+	    oct_val = ipv6_header->ip6_dst.s6_addr[ip6_byte];
+	    if (ip6_byte == 0){
+	      //printf("Req target: %s\n", inet_ntop(AF_INET6, &ipv6_header->ip6_dst.s6_addr, ip6_addr_str, 50));
 	    }
 	  } else {
 	  //For ICMPv6 error messages, the sender is not the intended target
@@ -150,8 +159,8 @@ void add_addr_path(struct addr_byte_node* current_node, struct ip6_hdr* ipv6_hea
             //printf("Error target: %s\n", inet_ntop(AF_INET6, icmpv6_err_target, ip6_addr_str, 50));
 	    //printf("i: %d, oct val: %d\n", ip6_byte, oct_val);
 	    if (ip6_byte == 0){
-	      printf("Error sender: %s\n", inet_ntop(AF_INET6, &ipv6_header->ip6_src.s6_addr, ip6_err_addr_str, 50));
-              printf("Error target: %s\n", inet_ntop(AF_INET6, icmpv6_err_target, ip6_addr_str, 50));
+	      //printf("Error sender: %s\n", inet_ntop(AF_INET6, &ipv6_header->ip6_src.s6_addr, ip6_err_addr_str, 50));
+              //printf("Error target: %s\n", inet_ntop(AF_INET6, icmpv6_err_target, ip6_addr_str, 50));
 	    }
 	  }
 	  
@@ -260,7 +269,7 @@ void process_packets(u_char *info, const u_char *packet, struct pcap_pkthdr pack
   struct addr_byte_node* current_node;
   
   //printf("Current_node not allocated yet \n");
-  current_node = i->addr_tree_root;
+  current_node = i->recv_tree_root;
   //printf("Current_node allocated \n");
   
   struct pfx *new_pfx;
@@ -281,6 +290,7 @@ void process_packets(u_char *info, const u_char *packet, struct pcap_pkthdr pack
 	//Check for Echo Request
         if (icmpv6_header->icmp6_type == 128){
 	  //printf("Echo Req\n");
+	  add_addr_path(i->send_tree_root, ipv6_header, icmpv6_header, "Echo Request");
 	  i->echo_req_count++;
 	  i->current_pfx->info->echo_req_count++;
 	  //not a response, this is an outgoing probe
@@ -418,15 +428,29 @@ int main(int argc, char **argv)
   struct pfx* current_pfx;
   
   //allocate root node for IPv6 target address octet tree
-  struct addr_byte_node* root_node;
-  root_node = (struct addr_byte_node*) malloc(sizeof(struct addr_byte_node));
-  root_node->parent = NULL;
-  root_node->descendents = NULL;
-  root_node->desc_count = 0;
-  root_node->bit_val = 0;
-  root_node->prev = NULL;
-  root_node->next = NULL;
-  info.addr_tree_root = root_node;
+  //separate trees for send and receive
+  struct addr_byte_node* recv_root_node;
+  recv_root_node = (struct addr_byte_node*) malloc(sizeof(struct addr_byte_node));
+  recv_root_node->parent = NULL;
+  recv_root_node->descendents = NULL;
+  recv_root_node->desc_count = 0;
+  recv_root_node->bit_val = 0;
+  recv_root_node->prev = NULL;
+  recv_root_node->next = NULL;
+  recv_root_node->duplicate_count = 0;
+  info.recv_tree_root = recv_root_node;
+
+  struct addr_byte_node* send_root_node;
+  send_root_node = (struct addr_byte_node*) malloc(sizeof(struct addr_byte_node));
+  send_root_node->parent = NULL;
+  send_root_node->descendents = NULL;
+  send_root_node->desc_count = 0;
+  send_root_node->bit_val = 0;
+  send_root_node->prev = NULL;
+  send_root_node->next = NULL;
+  send_root_node->duplicate_count = 0;
+  info.send_tree_root = send_root_node;
+
 
   current_pfx = (struct pfx*)malloc(sizeof(struct pfx));
   current_pfx->pfx_addr = NULL;
@@ -484,13 +508,15 @@ int main(int argc, char **argv)
   struct pfx *cursor;
   cursor = info.current_pfx;
   */
-  
+ 
+  /* 
   printf(
 	  "Original info count:\nEcho Req: %d\nEcho Reply: %d\nTime Exceeded: %d\nNo Route: %d\nAddress Unreachable: %d\nAdmin Prohibited: %d\nPort Unreachable: %d\nReject Route: %d\nSrc Addr Failed Ingress/Egress Policy: %d\nTotal responses received: %d\n\n", 
 	  info.echo_req_count, info.echo_reply_count, info.time_exceeded_count, info.no_route_count, 
 	  info.address_unreachable_count, info.admin_prohibited_count, info.port_unreachable_count, 
 	  info.reject_route_count, info.failed_policy_count, info.total_resp_count
   );
+  */
 
 
     struct capture_info* info_tree;
@@ -508,7 +534,10 @@ int main(int argc, char **argv)
     info_tree->failed_policy_count = 0;
     info_tree->duplicate_probe_count = 0;
 
-    traverse_leaf_nodes(info.addr_tree_root, info_tree);
+    printf("info_tree set up\n");
+
+    traverse_leaf_nodes(info.send_tree_root, info_tree);
+    traverse_leaf_nodes(info.recv_tree_root, info_tree);
 
 
     printf("Tree info count:\nEcho Req: %d\nEcho Reply: %d\nTime Exceeded: %d\nNo Route: %d\nAddress Unreachable: %d\nAdmin Prohibited: %d\nPort Unreachable: %d\nReject Route: %d\nSrc Addr Failed Ingress/Egress Policy: %d\nTotal responses: %d\nDuplicate response count: %d\n\n", 
