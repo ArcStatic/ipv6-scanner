@@ -23,6 +23,7 @@ struct capture_info {
     int port_unreachable_count;
     int reject_route_count;
     int failed_policy_count;
+    int duplicate_probe_count;
     struct pfx* current_pfx;
     struct addr_byte_node* addr_tree_root;
 };
@@ -43,6 +44,7 @@ struct addr_byte_node {
     struct addr_byte_node* descendents;
     struct addr_byte_node* next;
     struct addr_byte_node* prev;
+    int duplicate_count;
 };
 
 
@@ -73,7 +75,26 @@ void traverse_leaf_nodes(struct addr_byte_node* node, struct capture_info* info)
 	        info->echo_req_count++;
 	}
 	info->total_resp_count++;
+	info->duplicate_probe_count += node->duplicate_count;
 	//printf("leaf: %s, %d\n", node->icmpv6_msg, node->bit_val);
+	
+	if (node->duplicate_count > 0){
+	     printf("leaf: %s, %d, duplicate count: %d\n", node->icmpv6_msg, node->bit_val, node->duplicate_count);
+	     unsigned char ipv6_pfx_bytes[16];
+	     char ipv6_addr_str[50];
+	     for (int i = 7; i >= 0; i--){
+	         ipv6_pfx_bytes[i] = node->bit_val;
+  	         node = node->parent;
+	     }
+
+	     for (int j = 8; j <= 15; j++){
+		 ipv6_pfx_bytes[j] = 0;
+	     }
+	     ipv6_pfx_bytes[15] = 1;
+
+             inet_ntop(AF_INET6, ipv6_pfx_bytes, ipv6_addr_str, 50);
+	     printf("Addr: %s\n--------\n", ipv6_addr_str);
+	}
 	
 	/*
 	  printf(
@@ -116,9 +137,8 @@ void add_addr_path(struct addr_byte_node* current_node, struct ip6_hdr* ipv6_hea
 	  //for Echo Reply, dst field is the same as the intended probe target
 	  if (icmpv6_header->icmp6_type == 129){
   	    oct_val = ipv6_header->ip6_src.s6_addr[ip6_byte];
-	    //printf("i: %d, oct val: %d\n", ip6_byte, oct_val);
 	    if (ip6_byte == 0){
-	      //printf("Reply sender: %s\n", inet_ntop(AF_INET6, &ipv6_header->ip6_src.s6_addr, ip6_addr_str, 50));
+	      printf("Reply sender: %s\n", inet_ntop(AF_INET6, &ipv6_header->ip6_src.s6_addr, ip6_addr_str, 50));
 	    }
 	  } else {
 	  //For ICMPv6 error messages, the sender is not the intended target
@@ -130,7 +150,8 @@ void add_addr_path(struct addr_byte_node* current_node, struct ip6_hdr* ipv6_hea
             //printf("Error target: %s\n", inet_ntop(AF_INET6, icmpv6_err_target, ip6_addr_str, 50));
 	    //printf("i: %d, oct val: %d\n", ip6_byte, oct_val);
 	    if (ip6_byte == 0){
-	      //printf("Error sender: %s\n", inet_ntop(AF_INET6, &ipv6_header->ip6_src.s6_addr, ip6_err_addr_str, 50));
+	      printf("Error sender: %s\n", inet_ntop(AF_INET6, &ipv6_header->ip6_src.s6_addr, ip6_err_addr_str, 50));
+              printf("Error target: %s\n", inet_ntop(AF_INET6, icmpv6_err_target, ip6_addr_str, 50));
 	    }
 	  }
 	  
@@ -197,10 +218,20 @@ void add_addr_path(struct addr_byte_node* current_node, struct ip6_hdr* ipv6_hea
 	      }
 	  }
 
-	  //if this is a leaf node, add ICMPv6 response type
+	  //if this is a leaf node, check if this value is a duplicate
+	  //if first instance of this address (ie. non-duplicate), add ICMPv6 response type
 	  if (ip6_byte == 7){
 	    //TODO: find a neater way of allocating mem for string
 	    //TODO: refactor to allocate icmpv6 code to leaf addr_byte_node instead of string?
+	    //sleep(1);
+	    if (current_node->icmpv6_msg == NULL){
+                //printf("Null icmpv6 string\n");
+		current_node->duplicate_count = 0;
+		;
+	    } else {
+	        //printf("Non-null icmpv6 string, potential duplicate.\n");
+                current_node->duplicate_count++;
+	    }
             icmpv6_str = (char*) malloc(20);
 	    //strcpy(icmpv6_str, "ICMPv6 Placeholder");
 	    strcpy(icmpv6_str, icmpv6_msg_str);
@@ -382,6 +413,7 @@ int main(int argc, char **argv)
   info.port_unreachable_count = 0;
   info.reject_route_count = 0;
   info.failed_policy_count = 0;
+  info.duplicate_probe_count = 0;
 
   struct pfx* current_pfx;
   
@@ -474,14 +506,16 @@ int main(int argc, char **argv)
     info_tree->port_unreachable_count = 0;
     info_tree->reject_route_count = 0;
     info_tree->failed_policy_count = 0;
+    info_tree->duplicate_probe_count = 0;
 
     traverse_leaf_nodes(info.addr_tree_root, info_tree);
 
 
-    printf("Tree info count:\nEcho Req: %d\nEcho Reply: %d\nTime Exceeded: %d\nNo Route: %d\nAddress Unreachable: %d\nAdmin Prohibited: %d\nPort Unreachable: %d\nReject Route: %d\nSrc Addr Failed Ingress/Egress Policy: %d\nTotal responses: %d\n\n", 
+    printf("Tree info count:\nEcho Req: %d\nEcho Reply: %d\nTime Exceeded: %d\nNo Route: %d\nAddress Unreachable: %d\nAdmin Prohibited: %d\nPort Unreachable: %d\nReject Route: %d\nSrc Addr Failed Ingress/Egress Policy: %d\nTotal responses: %d\nDuplicate response count: %d\n\n", 
     info_tree->echo_req_count, info_tree->echo_reply_count, info_tree->time_exceeded_count, info_tree->no_route_count, 
     info_tree->address_unreachable_count, info_tree->admin_prohibited_count, info_tree->port_unreachable_count, 
-    info_tree->reject_route_count, info_tree->failed_policy_count, info_tree->total_resp_count);
+    info_tree->reject_route_count, info_tree->failed_policy_count, info_tree->total_resp_count, 
+    info_tree->duplicate_probe_count);
 
 
   return 0;
