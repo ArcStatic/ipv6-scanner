@@ -29,6 +29,25 @@ struct capture_info {
     struct addr_byte_node* recv_tree_root;
 };
 
+struct advert_info {
+    //ie. keep reference to point in the addr byte tree where this advert starts
+    struct addr_byte_node* tree_node;
+    struct advert_info* next;
+    struct advert_info* prev;
+    int total_resp_count;
+    int echo_req_count;
+    int echo_reply_count;
+    int time_exceeded_count;
+    int no_route_count;
+    int address_unreachable_count;
+    int admin_prohibited_count;
+    int port_unreachable_count;
+    int reject_route_count;
+    int failed_policy_count;
+    int duplicate_probe_count;
+};
+
+
 struct pfx {
     char* pfx_addr;
     int mask_len;
@@ -36,6 +55,7 @@ struct pfx {
     struct pfx* next;
     struct pfx* prev;
 };
+
 
 struct addr_byte_node {
     unsigned char bit_val;
@@ -45,8 +65,121 @@ struct addr_byte_node {
     struct addr_byte_node* descendents;
     struct addr_byte_node* next;
     struct addr_byte_node* prev;
+    struct advert_info* adv_info;
     int duplicate_count;
 };
+
+
+
+//TODO: implement this
+//adds advert info as a node in a linked list
+//each node contains information about a single advertisement
+//TODO: made these work for advertisements which aren't /48
+struct advert_info* create_advert_info_node(struct advert_info* prev_adv, struct addr_byte_node* tree_node){
+	struct advert_info* new_adv;
+
+	new_adv = (struct advert_info*)malloc(sizeof(struct advert_info));
+        new_adv->tree_node = tree_node;
+	new_adv->next = NULL;
+	new_adv->prev = prev_adv;
+	new_adv->total_resp_count = 0;
+	new_adv->echo_req_count = 0;
+	new_adv->echo_reply_count = 0;
+	new_adv->time_exceeded_count = 0;
+	new_adv->no_route_count = 0;
+	new_adv->address_unreachable_count = 0;
+	new_adv->admin_prohibited_count = 0;
+	new_adv->port_unreachable_count = 0;
+	new_adv->reject_route_count = 0;
+	new_adv->failed_policy_count = 0;
+	new_adv->duplicate_probe_count = 0;
+
+        return new_adv;
+}
+
+//TODO: make these work for adverts which aren't /48s
+void print_adv_addr(struct advert_info* adv){
+	
+	unsigned char ipv6_pfx_bytes[16];
+	char ipv6_addr_str[50];
+	struct addr_byte_node* node = adv->tree_node;
+
+	for (int i = 5; i >= 0; i--){
+	    ipv6_pfx_bytes[i] = node->bit_val;
+	    node = node->parent;
+	} 
+
+	for (int j = 6; j <= 15; j++){
+	     ipv6_pfx_bytes[j] = 0;
+	}
+	//ipv6_pfx_bytes[15] = 1;
+
+	inet_ntop(AF_INET6, ipv6_pfx_bytes, ipv6_addr_str, 50);
+	printf("Adv addr: %s\n", ipv6_addr_str);
+
+}
+
+void print_adv_info(struct advert_info* adv){
+        
+	printf("adv info:\ntotal_resp_count: %d\n\
+			echo_req_count: %d\n\
+			echo_reply_count: %d\n\
+			time_exceeded_count:%d\n\
+			no_route_count: %d\n\
+			address_unreachable_count: %d\n\
+			admin_prohibited_count: %d\n\
+			port_unreachable_count: %d\n\
+			reject_route_count: %d\n\
+			failed_policy_count: %d\n\
+			duplicate_count: %d\n",
+	
+	adv->total_resp_count,
+	adv->echo_req_count,
+	adv->echo_reply_count,
+	adv->time_exceeded_count,
+	adv->no_route_count,
+	adv->address_unreachable_count,
+	adv->admin_prohibited_count,
+	adv->port_unreachable_count,
+	adv->reject_route_count,
+	adv->failed_policy_count,
+	adv->duplicate_probe_count);
+}
+
+
+//add information about responses within a specific advertisement
+//ie. a node at layer 7 of the tree (6th byte, plus root node) will be the start of a /48 advertisement
+//TODO: make this work with advertisements that aren't /48
+//each advertisement will have a capture_info element in a linked list
+//update a capture_info element of the list with response counts etc 
+void update_advert_info(struct advert_info* info, struct addr_byte_node* node){
+	if (strcmp(node->icmpv6_msg, "Echo Reply") == 0){
+	        info->echo_reply_count++;
+	} else if (strcmp(node->icmpv6_msg, "Time Exceeded") == 0){
+	        info->time_exceeded_count++;
+	} else if (strcmp(node->icmpv6_msg, "No Route") == 0){
+	        info->no_route_count++;
+	} else if (strcmp(node->icmpv6_msg, "Address Unreachable") == 0){
+	        info->address_unreachable_count++;
+	} else if (strcmp(node->icmpv6_msg, "Admin Prohibited") == 0){
+	        info->admin_prohibited_count++;
+        } else if (strcmp(node->icmpv6_msg, "Port Unreachable") == 0){
+	        info->port_unreachable_count++;
+        } else if (strcmp(node->icmpv6_msg, "Reject Route") == 0){
+	        info->reject_route_count++;
+	} else if (strcmp(node->icmpv6_msg, "Failed Policy") == 0){
+	        info->failed_policy_count++;
+	} else if (strcmp(node->icmpv6_msg, "Echo Request") == 0){
+	        info->echo_req_count++;
+	}
+
+	info->duplicate_probe_count += node->duplicate_count;
+
+	//printf("\n=========\nadv updated (%p, msg %s)\n", info, node->icmpv6_msg);
+	//print_adv_addr(info);
+	//print_adv_info(info);
+
+}
 
 
 //count all ICMPv6 message types stored in leaf nodes
@@ -79,9 +212,13 @@ void traverse_leaf_nodes(struct addr_byte_node* node, struct capture_info* info)
 	//TODO: this assumes all duplicates have the same response type, need to log different responses for same addr
 	info->total_resp_count++;
 	info->duplicate_probe_count += node->duplicate_count;
-	//printf("leaf: %s, %d\n", node->icmpv6_msg, node->bit_val);
+	//printf("\n-------\nleaf: %s, %d\n", node->icmpv6_msg, node->bit_val);
 	
+	//TODO: make this work for non /48 advertisements
+	update_advert_info(node->parent->parent->adv_info, node);
+
 	if (node->duplicate_count > 0){
+	     //printf("leaf: %s, duplicate count: %d, ", node->icmpv6_msg, node->duplicate_count);
 	     unsigned char ipv6_pfx_bytes[16];
 	     char ipv6_addr_str[50];
 	     for (int i = 7; i >= 0; i--){
@@ -95,8 +232,9 @@ void traverse_leaf_nodes(struct addr_byte_node* node, struct capture_info* info)
 	     ipv6_pfx_bytes[15] = 1;
 
              inet_ntop(AF_INET6, ipv6_pfx_bytes, ipv6_addr_str, 50);
-	     printf("Addr: %s\n--------\n", ipv6_addr_str);
-	     printf("leaf: %s, %d, duplicate count: %d\n", node->icmpv6_msg, node->bit_val, node->duplicate_count);
+	     //printf("Addr: %s\n", ipv6_addr_str);
+	     //printf("leaf: %s, %d, duplicate count: %d\n", node->icmpv6_msg, node->bit_val, node->duplicate_count);
+	     //sleep(5);
 	}
 	
 	/*
@@ -117,6 +255,11 @@ void traverse_leaf_nodes(struct addr_byte_node* node, struct capture_info* info)
 	   current_node = current_node->next; 
        }
     }
+
+    if (node->adv_info != NULL){
+	    print_adv_addr(node->adv_info);
+	    print_adv_info(node->adv_info);
+    }
 }
 
 
@@ -125,7 +268,7 @@ void traverse_leaf_nodes(struct addr_byte_node* node, struct capture_info* info)
 void add_addr_path(struct addr_byte_node* current_node, struct ip6_hdr* ipv6_header, struct icmp6_hdr* icmpv6_header, char* icmpv6_msg_str){
 	
         //struct icmp6_hdr *icmpv6_header;
-	unsigned int oct_val;
+	unsigned char oct_val;
 	struct addr_byte_node* new_desc;
 	char* icmpv6_str;
 	char* icmpv6_err_target;
@@ -175,6 +318,7 @@ void add_addr_path(struct addr_byte_node* current_node, struct ip6_hdr* ipv6_hea
 	      new_desc->descendents = NULL;
 	      new_desc->next = NULL;
 	      new_desc->prev = NULL;
+	      new_desc->adv_info = NULL;
 	      current_node->descendents = new_desc;
               //printf("initial layer node added: %d (%d), parent %d\n", oct_val, current_node->descendents->bit_val, new_desc->parent->bit_val);
 	      current_node = new_desc;
@@ -188,13 +332,14 @@ void add_addr_path(struct addr_byte_node* current_node, struct ip6_hdr* ipv6_hea
 	      //no second node present
 	      } else if (new_desc->next == NULL){
 		new_desc->next = (struct addr_byte_node*) malloc(sizeof(struct addr_byte_node));
-		//printf("oct-val: %d, second node val: %d\n", oct_val, new_desc->bit_val);
+		//printf("oct-val: %d, new node val: %d\n", oct_val, new_desc->bit_val);
 		new_desc->next->prev = new_desc;
 		new_desc = new_desc->next;
                 new_desc->bit_val = oct_val;
 	        new_desc->parent = current_node;
 	        new_desc->descendents = NULL;
 	        new_desc->next = NULL;
+		new_desc->adv_info = NULL;
 	        //new_desc->prev = current_node;
 		//tree traversal error was here!
 		//current_node->next = new_desc;
@@ -202,7 +347,7 @@ void add_addr_path(struct addr_byte_node* current_node, struct ip6_hdr* ipv6_hea
 
 	      //first node doesn't match, more than one node present: iterate through linked list values
 	      } else {
-		while (new_desc->next){
+	while (new_desc->next){
 	          new_desc = new_desc->next;
 		  //printf("oct-val: %d, cycle node val: %d\n", oct_val, new_desc->bit_val);
 		  if (new_desc->bit_val == oct_val){
@@ -221,10 +366,20 @@ void add_addr_path(struct addr_byte_node* current_node, struct ip6_hdr* ipv6_hea
 	   	    new_desc->descendents = NULL;
 		    new_desc->next = NULL;
 		    new_desc->prev = current_node;
+		    new_desc->adv_info = NULL;
 		    current_node = new_desc;
 		  }
 		}
 	      }
+	  }
+
+	  //if this is the 6th byte of the addr, it's the start of an associated /48 advertisement
+	  //TODO: make this work for non /48 advertisements
+          if ((ip6_byte == 5) && (current_node->adv_info == NULL)){
+	      //TODO: make adv_info nodes link together
+              current_node->adv_info = create_advert_info_node(NULL, current_node);
+	      //printf("adv_info crated at node %d (node: %p, adv_info: %p)\n", current_node->bit_val, current_node, current_node->adv_info);
+	      //print_adv_addr(current_node->adv_info);
 	  }
 
 	  //if this is a leaf node, check if this value is a duplicate
@@ -534,10 +689,14 @@ int main(int argc, char **argv)
     info_tree->failed_policy_count = 0;
     info_tree->duplicate_probe_count = 0;
 
-    printf("info_tree set up\n");
+    //printf("info_tree set up\n");
 
-    traverse_leaf_nodes(info.send_tree_root, info_tree);
+    if (info.send_tree_root->descendents){
+      traverse_leaf_nodes(info.send_tree_root, info_tree);
+    }
+    //printf("send tree complete\n");
     traverse_leaf_nodes(info.recv_tree_root, info_tree);
+    //printf("recv tree complete\n");
 
 
     printf("Tree info count:\nEcho Req: %d\nEcho Reply: %d\nTime Exceeded: %d\nNo Route: %d\nAddress Unreachable: %d\nAdmin Prohibited: %d\nPort Unreachable: %d\nReject Route: %d\nSrc Addr Failed Ingress/Egress Policy: %d\nTotal responses: %d\nDuplicate response count: %d\n\n", 
