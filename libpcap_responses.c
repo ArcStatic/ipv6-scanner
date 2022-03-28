@@ -115,23 +115,23 @@ void print_adv_addr(struct advert_info* adv){
 	//ipv6_pfx_bytes[15] = 1;
 
 	inet_ntop(AF_INET6, ipv6_pfx_bytes, ipv6_addr_str, 50);
-	printf("Adv addr: %s\n", ipv6_addr_str);
+	printf("Advertised range starting addr: %s\n", ipv6_addr_str);
 
 }
 
 void print_adv_info(struct advert_info* adv){
         
 	printf("adv info:\ntotal_resp_count: %d\n\
-			echo_req_count: %d\n\
-			echo_reply_count: %d\n\
-			time_exceeded_count:%d\n\
-			no_route_count: %d\n\
-			address_unreachable_count: %d\n\
-			admin_prohibited_count: %d\n\
-			port_unreachable_count: %d\n\
-			reject_route_count: %d\n\
-			failed_policy_count: %d\n\
-			duplicate_count: %d\n",
+echo_req_count: %d\n\
+echo_reply_count: %d\n\
+time_exceeded_count: %d\n\
+no_route_count: %d\n\
+address_unreachable_count: %d\n\
+admin_prohibited_count: %d\n\
+port_unreachable_count: %d\n\
+reject_route_count: %d\n\
+failed_policy_count: %d\n\
+duplicate_count: %d\n",
 	
 	adv->total_resp_count,
 	adv->echo_req_count,
@@ -256,7 +256,10 @@ void traverse_leaf_nodes(struct addr_byte_node* node, struct capture_info* info)
        }
     }
 
+    //if there is an advertisement starting at this node, all leaf node info has been collected through recursive calls by this point
+    //print stats
     if (node->adv_info != NULL){
+	    printf("--------\n");
 	    print_adv_addr(node->adv_info);
 	    print_adv_info(node->adv_info);
     }
