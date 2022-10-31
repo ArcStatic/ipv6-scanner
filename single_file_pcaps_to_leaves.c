@@ -115,7 +115,7 @@ void print_adv_addr(struct advert_info* adv){
 	//ipv6_pfx_bytes[15] = 1;
 
 	inet_ntop(AF_INET6, ipv6_pfx_bytes, ipv6_addr_str, 50);
-	printf("Advertised range starting addr: %s\n", ipv6_addr_str);
+	//printf("Advertised range starting addr: %s\n", ipv6_addr_str);
 
 }
 
@@ -175,7 +175,7 @@ void update_advert_info(struct advert_info* info, struct addr_byte_node* node){
 
 	info->duplicate_probe_count += node->duplicate_count;
 
-	printf("\n=========\nadv updated (%p, msg %s)\n", info, node->icmpv6_msg);
+	//printf("\n=========\nadv updated (%p, msg %s)\n", info, node->icmpv6_msg);
 	print_adv_addr(info);
 	//print_adv_info(info);
 
@@ -186,10 +186,17 @@ void update_advert_info(struct advert_info* info, struct addr_byte_node* node){
 void traverse_leaf_nodes(struct addr_byte_node* node, struct capture_info* info){
     struct addr_byte_node* current_node = NULL;
 
-    printf("traverse starting...\n");
+
+    //printf("traverse starting...\n");
+    //if (strcmp(node->icmpv6_msg, "aaaa") == 0){
+    //if (node->icmpv6_msg == NULL){
+	    //printf("NULL found!\n");
+    //}
     //if no descendents, this is a leaf node
     if (node->descendents == NULL){
         // add stat to info
+	//printf("no descendents - starting else if checks\n");
+        //printf("\n-------\nleaf: %d\n", node->bit_val);
         if (strcmp(node->icmpv6_msg, "Echo Reply") == 0){
 	        info->echo_reply_count++;
 	} else if (strcmp(node->icmpv6_msg, "Time Exceeded") == 0){
@@ -207,23 +214,30 @@ void traverse_leaf_nodes(struct addr_byte_node* node, struct capture_info* info)
 	} else if (strcmp(node->icmpv6_msg, "Failed Policy") == 0){
 	        info->failed_policy_count++;
 	} else if (strcmp(node->icmpv6_msg, "Echo Request") == 0){
+		//printf("Echo Req!\n");
 	        info->echo_req_count++;
 	}
 	//TODO: this assumes all duplicates have the same response type, need to log different responses for same addr
 	info->total_resp_count++;
+	//printf("resp_count checked\n");
 	info->duplicate_probe_count += node->duplicate_count;
-	printf("\n-------\nleaf: %s, %d\n", node->icmpv6_msg, node->bit_val);
+	//printf("duplicate_count check\n");
+	//printf("\n-------\nleaf: %s, %d\n", node->icmpv6_msg, node->bit_val);
 	
 	//TODO: make this work for non /48 advertisements
-	update_advert_info(node->parent->parent->adv_info, node);
+	//TODO: AUG 23 - change leaf nodes to have an advert node field - propagate that down when creating nodes
+	//update_advert_info(node->parent->parent->adv_info, node);
 
 	if (node->duplicate_count > 0){
-	     printf("leaf: %s, duplicate count: %d, ", node->icmpv6_msg, node->duplicate_count);
+	     //printf("leaf: %s, duplicate count: %d, ", node->icmpv6_msg, node->duplicate_count);
 	     unsigned char ipv6_pfx_bytes[16];
 	     char ipv6_addr_str[50];
 	     for (int i = 15; i >= 0; i--){
 	     //for (int i = 7; i >= 0; i--){
+	         //printf("pfx_bytes i: %d\n", i);
 	         ipv6_pfx_bytes[i] = node->bit_val;
+	         //printf("node->bit_val: %d\n", node->bit_val);
+		 //printf("node->parent: %p\n", node->parent);
   	         node = node->parent;
 	     }
 
@@ -249,9 +263,12 @@ void traverse_leaf_nodes(struct addr_byte_node* node, struct capture_info* info)
     //if descendents, move down to this level
     //then iterate through linked list to trace paths of each descendent in turn
     } else {
+
+       //printf("else if block checked - descendents checked\n");
        current_node = node->descendents;
        //printf("non-leaf: %d\n", current_node->bit_val);
        while(current_node){
+	       //printf("recursive call\n");
            traverse_leaf_nodes(current_node, info);
 	   current_node = current_node->next; 
        }
@@ -259,11 +276,14 @@ void traverse_leaf_nodes(struct addr_byte_node* node, struct capture_info* info)
 
     //if there is an advertisement starting at this node, all leaf node info has been collected through recursive calls by this point
     //print stats
-    if (node->adv_info != NULL){
+    /*
+	if (node->adv_info != NULL){
 	    printf("--------\n");
 	    print_adv_addr(node->adv_info);
 	    print_adv_info(node->adv_info);
     }
+    */
+    //printf("end of traverse\n");
 }
 
 
@@ -283,18 +303,18 @@ void add_addr_path(struct addr_byte_node* current_node, struct ip6_hdr* ipv6_hea
 	oct_val = 0;
 	icmpv6_str = NULL;
 
-	for (int ip6_byte = 0; ip6_byte < 15; ip6_byte++){
+	for (int ip6_byte = 0; ip6_byte <= 15; ip6_byte++){
 	  //for Echo Reply, src field is (usually) the same as the intended probe target
 	  if (icmpv6_header->icmp6_type == 129){
   	    oct_val = ipv6_header->ip6_src.s6_addr[ip6_byte];
 	    if (ip6_byte == 0){
-	      //printf("Reply sender: %s\n", inet_ntop(AF_INET6, &ipv6_header->ip6_src.s6_addr, ip6_addr_str, 50));
+	      //printf("Echo reply sender: %s\n", inet_ntop(AF_INET6, &ipv6_header->ip6_src.s6_addr, ip6_addr_str, 50));
 	    }
 	  //for Echo Request, record target from src addr
 	  } else if (icmpv6_header->icmp6_type == 128){
 	    oct_val = ipv6_header->ip6_dst.s6_addr[ip6_byte];
 	    if (ip6_byte == 0){
-	      //printf("Req target: %s\n", inet_ntop(AF_INET6, &ipv6_header->ip6_dst.s6_addr, ip6_addr_str, 50));
+	      //printf("Echo req target: %s\n", inet_ntop(AF_INET6, &ipv6_header->ip6_dst.s6_addr, ip6_addr_str, 50));
 	    }
 	  } else {
 	  //For ICMPv6 error messages, the sender is not the intended target
@@ -405,6 +425,9 @@ void add_addr_path(struct addr_byte_node* current_node, struct ip6_hdr* ipv6_hea
 	    //strcpy(icmpv6_str, "ICMPv6 Placeholder");
 	    strcpy(icmpv6_str, icmpv6_msg_str);
 	    current_node->icmpv6_msg = icmpv6_str;
+	    //printf("icmpv6_str: %s\n", icmpv6_str);
+            
+            current_node->descendents = NULL;
 
 	    //printf("ICMPv6 msg for node %d: %s\n-----------\n", current_node->bit_val, current_node->icmpv6_msg);
 	  }
@@ -457,6 +480,7 @@ void process_packets(u_char *info, const u_char *packet, struct pcap_pkthdr pack
 	  
 	  //Check for Echo Reply
 	} else if (icmpv6_header->icmp6_type == 129){
+	  //printf("Echo Reply\n");
 	  add_addr_path(current_node, ipv6_header, icmpv6_header, "Echo Reply");
 	  i->echo_reply_count++; 
 	  i->current_pfx->info->echo_reply_count++; 
@@ -472,6 +496,7 @@ void process_packets(u_char *info, const u_char *packet, struct pcap_pkthdr pack
 	} else if (icmpv6_header->icmp6_type == 1){
 	    //No Route
 	    if (icmpv6_header->icmp6_code == 0){
+	       //printf("No Route\n");
 	       add_addr_path(current_node, ipv6_header, icmpv6_header, "No Route");
 	       i->no_route_count++;
 	       i->current_pfx->info->no_route_count++;
@@ -526,7 +551,7 @@ void my_packet_handler(u_char *info, const struct pcap_pkthdr *packet_header, co
   process_packets(info, packet_body, *packet_header);
 }
 
-int dir_loop(char *dirname, struct capture_info *info){
+int file_read(char *filename, struct capture_info *info){
   DIR *folder;
   struct dirent *entry;
   int count = 0;
@@ -536,7 +561,7 @@ int dir_loop(char *dirname, struct capture_info *info){
   pcap_t *handle = NULL;
   char abs_path[256];
   struct pfx *current_pfx;
-
+  /*
   folder = opendir(dirname);
   if (folder == NULL){
     perror("Can't read directory.\n");
@@ -553,8 +578,10 @@ int dir_loop(char *dirname, struct capture_info *info){
 	strcat(abs_path, "/");
 	strcat(abs_path, entry->d_name);
 	printf("Absolute: %s\n", abs_path);
-        handle = pcap_open_offline(abs_path, error_buffer);
+	*/
+        handle = pcap_open_offline(filename, error_buffer);
 	pcap_loop(handle, 0, my_packet_handler, (u_char*)info);
+	/*
 	printf("Loop done.\n");
        	
       } else {
@@ -566,6 +593,8 @@ int dir_loop(char *dirname, struct capture_info *info){
   }
 
   closedir(folder);
+  */
+  
   return(0);
 }
 
@@ -626,53 +655,17 @@ int main(int argc, char **argv)
   for (int i = 1; i <= argc - 1; i++){
     if (strstr(argv[i], "send") != NULL){
 	printf("Send dir: %s\n", argv[i]);
-        dir_loop(argv[i], &info);
+        file_read(argv[i], &info);
     } else if (strstr(argv[i], "recv") != NULL){
 	printf("Recv dir: %s\n", argv[i]);
-	dir_loop(argv[i], &info);
+	file_read(argv[i], &info);
     } else {
        printf("Other: %s\n", argv[i]);
-       dir_loop(argv[i], &info);
+       file_read(argv[i], &info);
     }
   }
   
-
   /*
-  //TODO: make argument handling less fragile
-  FILE* fp;
-  char* line;
-  size_t line_len;
-  int read;
-  int mask;
-  char* octet_a;
-
-  line = NULL;
-  line_len = 0;
-  read = 0;
-  octet_a = (char*) malloc(4);
-  //octet_b = (char*) malloc(2);
-  
-  fp = fopen(argv[2], "r");
-  while((read = getline(&line, &line_len, fp)) != -1){
-    printf("line: %s", line);
-    for(int i; line[i] != ':'; i++){
-      octet_a[i] = line[i];
-    }
-
-    printf("octet str: %s\n", octet_a); 
-    printf("octet cast to dec ints: %ld, %ld\n", strtol(octet_a, NULL, 16) >> 8, strtol(octet_a, NULL, 16) & 255); 
-  }
-
-  fclose(fp);
-  */
-  
-
-  /*
-  struct pfx *cursor;
-  cursor = info.current_pfx;
-  */
- 
-  /* 
   printf(
 	  "Original info count:\nEcho Req: %d\nEcho Reply: %d\nTime Exceeded: %d\nNo Route: %d\nAddress Unreachable: %d\nAdmin Prohibited: %d\nPort Unreachable: %d\nReject Route: %d\nSrc Addr Failed Ingress/Egress Policy: %d\nTotal responses received: %d\n\n", 
 	  info.echo_req_count, info.echo_reply_count, info.time_exceeded_count, info.no_route_count, 
@@ -703,7 +696,9 @@ int main(int argc, char **argv)
       traverse_leaf_nodes(info.send_tree_root, info_tree);
     }
     printf("send tree complete\n");
-    traverse_leaf_nodes(info.recv_tree_root, info_tree);
+    if (info.recv_tree_root->descendents){
+        traverse_leaf_nodes(info.recv_tree_root, info_tree);
+    }
     printf("recv tree complete\n");
 
 

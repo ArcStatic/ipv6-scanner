@@ -425,14 +425,7 @@ void process_packets(u_char *info, const u_char *packet, struct pcap_pkthdr pack
 
   struct capture_info *i;
   i = (struct capture_info *) info;
-  int oct_val = 0;
-  struct addr_byte_node* current_node;
   
-  //printf("Current_node not allocated yet \n");
-  current_node = i->recv_tree_root;
-  //printf("Current_node allocated \n");
-  
-  struct pfx *new_pfx;
 
   if (ntohs(eth_header->ether_type) == ETHERTYPE_IP) {
     printf("IP\n");
@@ -450,61 +443,42 @@ void process_packets(u_char *info, const u_char *packet, struct pcap_pkthdr pack
 	//Check for Echo Request
         if (icmpv6_header->icmp6_type == 128){
 	  //printf("Echo Req\n");
-	  add_addr_path(i->send_tree_root, ipv6_header, icmpv6_header, "Echo Request");
 	  i->echo_req_count++;
-	  i->current_pfx->info->echo_req_count++;
 	  //not a response, this is an outgoing probe
 	  
 	  //Check for Echo Reply
 	} else if (icmpv6_header->icmp6_type == 129){
-	  add_addr_path(current_node, ipv6_header, icmpv6_header, "Echo Reply");
 	  i->echo_reply_count++; 
-	  i->current_pfx->info->echo_reply_count++; 
           i->total_resp_count++;
-          i->current_pfx->info->total_resp_count++;
 	//Check for Time Exceeded
 	} else if (icmpv6_header->icmp6_type == 3){
 	  //printf("Time Exceeded\n");
-	  add_addr_path(current_node, ipv6_header, icmpv6_header, "Time Exceeded");
 	  i->time_exceeded_count++;
 	  i->total_resp_count++;
 	//Check for Destination Unreachable
 	} else if (icmpv6_header->icmp6_type == 1){
 	    //No Route
 	    if (icmpv6_header->icmp6_code == 0){
-	       add_addr_path(current_node, ipv6_header, icmpv6_header, "No Route");
 	       i->no_route_count++;
-	       i->current_pfx->info->no_route_count++;
 	    //Address Unreachable
 	    } else if (icmpv6_header->icmp6_code == 3){
-	       add_addr_path(current_node, ipv6_header, icmpv6_header, "Address Unreachable");
 	       i->address_unreachable_count++;
-	       i->current_pfx->info->address_unreachable_count++;
 	    //Communication with destination administratively prohibited
             } else if (icmpv6_header->icmp6_code == 1){
-	       add_addr_path(current_node, ipv6_header, icmpv6_header, "Admin Prohibited");
 	       i->admin_prohibited_count++;
-	       i->current_pfx->info->admin_prohibited_count++;
 	    //Port Unreachable
             } else if (icmpv6_header->icmp6_code == 4){
-	       add_addr_path(current_node, ipv6_header, icmpv6_header, "Port Unreachable");
 	       i->port_unreachable_count++;
-	       i->current_pfx->info->port_unreachable_count++;
 	    //Reject Route to Destination
             } else if (icmpv6_header->icmp6_code == 6){
-	       add_addr_path(current_node, ipv6_header, icmpv6_header, "Reject Route");
 	       i->reject_route_count++;
-	       i->current_pfx->info->reject_route_count++;
 	    //Failed Ingress/Egress Policy
             } else if (icmpv6_header->icmp6_code == 5){
-	       add_addr_path(current_node, ipv6_header, icmpv6_header, "Failed Policy");
 	       i->failed_policy_count++;
-	       i->current_pfx->info->failed_policy_count++;
             } else {
 	       printf("Unhandled ICMPv6 unreachable code: %d\n", icmpv6_header->icmp6_code);
 	    }
 	    i->total_resp_count++;
-	    i->current_pfx->info->total_resp_count++;
 	//Neighbour Solicitation - ignore
 	} else if (icmpv6_header->icmp6_type == 135){
 		;
@@ -526,7 +500,7 @@ void my_packet_handler(u_char *info, const struct pcap_pkthdr *packet_header, co
   process_packets(info, packet_body, *packet_header);
 }
 
-int dir_loop(char *dirname, struct capture_info *info){
+int dir_loop(char *dirname){
   DIR *folder;
   struct dirent *entry;
   int count = 0;
@@ -542,21 +516,50 @@ int dir_loop(char *dirname, struct capture_info *info){
     perror("Can't read directory.\n");
     return(1);
   }
+  
+  struct capture_info* info;
+  info = (struct capture_info*)malloc(sizeof(struct capture_info));  
 
   //TODO: these checks to skip . and .. are janky as hell, change to something better
   while((entry=readdir(folder))){
     if (strcmp(entry->d_name, ".")){
       if (strcmp(entry->d_name, "..")){
-        count++;
-        printf("File %d: %s\n", count, entry->d_name);
+        
+	info->total_resp_count = 0;
+	info->echo_req_count = 0;
+	info->echo_reply_count = 0;
+	info->time_exceeded_count = 0;
+	info->no_route_count = 0;
+	info->address_unreachable_count = 0;
+	info->admin_prohibited_count = 0;
+	info->port_unreachable_count = 0;
+	info->reject_route_count = 0;
+	info->failed_policy_count = 0;
+	info->duplicate_probe_count = 0;
+
+      
+	      
+	count++;
+        //printf("File %d: %s\n", count, entry->d_name);
 	strcpy(abs_path, dirname);
 	strcat(abs_path, "/");
 	strcat(abs_path, entry->d_name);
-	printf("Absolute: %s\n", abs_path);
+	//printf("Absolute: %s\n", abs_path);
         handle = pcap_open_offline(abs_path, error_buffer);
 	pcap_loop(handle, 0, my_packet_handler, (u_char*)info);
-	printf("Loop done.\n");
-       	
+	//printf("Loop done.\n");
+	 
+	printf("\n\n----------\n");
+	printf(
+	  "%s\nEcho Req: %d\nEcho Reply: %d\nTime Exceeded: %d\nNo Route: %d\nAddress Unreachable: %d\nAdmin Prohibited: %d\nPort Unreachable: %d\nReject Route: %d\nSrc Addr Failed Ingress/Egress Policy: %d\nTotal responses received: %d\n\n", 
+	  entry->d_name,
+	  info->echo_req_count, info->echo_reply_count, info->time_exceeded_count, info->no_route_count, 
+	  info->address_unreachable_count, info->admin_prohibited_count, info->port_unreachable_count, 
+	  info->reject_route_count, info->failed_policy_count, info->total_resp_count
+	);
+	
+
+      	
       } else {
         printf("Skipping file %s\n", entry->d_name);
       }
@@ -570,151 +573,11 @@ int dir_loop(char *dirname, struct capture_info *info){
 }
 
 
-int main(int argc, char **argv)
-{ 
-  struct capture_info info;
-  info.total_resp_count = 0;
-  info.echo_req_count = 0;
-  info.echo_reply_count = 0;
-  info.time_exceeded_count = 0;
-  info.no_route_count = 0;
-  info.address_unreachable_count = 0;
-  info.admin_prohibited_count = 0;
-  info.port_unreachable_count = 0;
-  info.reject_route_count = 0;
-  info.failed_policy_count = 0;
-  info.duplicate_probe_count = 0;
+int main(int argc, char **argv){ 
 
-  struct pfx* current_pfx;
-  
-  //allocate root node for IPv6 target address octet tree
-  //separate trees for send and receive
-  struct addr_byte_node* recv_root_node;
-  recv_root_node = (struct addr_byte_node*) malloc(sizeof(struct addr_byte_node));
-  recv_root_node->parent = NULL;
-  recv_root_node->descendents = NULL;
-  recv_root_node->desc_count = 0;
-  recv_root_node->bit_val = 0;
-  recv_root_node->prev = NULL;
-  recv_root_node->next = NULL;
-  recv_root_node->duplicate_count = 0;
-  info.recv_tree_root = recv_root_node;
+   dir_loop(argv[1]);
 
-  struct addr_byte_node* send_root_node;
-  send_root_node = (struct addr_byte_node*) malloc(sizeof(struct addr_byte_node));
-  send_root_node->parent = NULL;
-  send_root_node->descendents = NULL;
-  send_root_node->desc_count = 0;
-  send_root_node->bit_val = 0;
-  send_root_node->prev = NULL;
-  send_root_node->next = NULL;
-  send_root_node->duplicate_count = 0;
-  info.send_tree_root = send_root_node;
-
-
-  current_pfx = (struct pfx*)malloc(sizeof(struct pfx));
-  current_pfx->pfx_addr = NULL;
-  current_pfx->mask_len = 0;
-  current_pfx->prev = NULL;
-  current_pfx->next = NULL;
-  current_pfx->info = (struct capture_info*)malloc(sizeof(struct capture_info));
-
-  info.current_pfx = current_pfx;
-  
-  //populate info struct with data from both send and receive captures:
-  
-  for (int i = 1; i <= argc - 1; i++){
-    if (strstr(argv[i], "send") != NULL){
-	printf("Send dir: %s\n", argv[i]);
-        dir_loop(argv[i], &info);
-    } else if (strstr(argv[i], "recv") != NULL){
-	printf("Recv dir: %s\n", argv[i]);
-	dir_loop(argv[i], &info);
-    } else {
-       printf("Other: %s\n", argv[i]);
-       dir_loop(argv[i], &info);
-    }
-  }
-  
-
-  /*
-  //TODO: make argument handling less fragile
-  FILE* fp;
-  char* line;
-  size_t line_len;
-  int read;
-  int mask;
-  char* octet_a;
-
-  line = NULL;
-  line_len = 0;
-  read = 0;
-  octet_a = (char*) malloc(4);
-  //octet_b = (char*) malloc(2);
-  
-  fp = fopen(argv[2], "r");
-  while((read = getline(&line, &line_len, fp)) != -1){
-    printf("line: %s", line);
-    for(int i; line[i] != ':'; i++){
-      octet_a[i] = line[i];
-    }
-
-    printf("octet str: %s\n", octet_a); 
-    printf("octet cast to dec ints: %ld, %ld\n", strtol(octet_a, NULL, 16) >> 8, strtol(octet_a, NULL, 16) & 255); 
-  }
-
-  fclose(fp);
-  */
-  
-
-  /*
-  struct pfx *cursor;
-  cursor = info.current_pfx;
-  */
- 
-  /* 
-  printf(
-	  "Original info count:\nEcho Req: %d\nEcho Reply: %d\nTime Exceeded: %d\nNo Route: %d\nAddress Unreachable: %d\nAdmin Prohibited: %d\nPort Unreachable: %d\nReject Route: %d\nSrc Addr Failed Ingress/Egress Policy: %d\nTotal responses received: %d\n\n", 
-	  info.echo_req_count, info.echo_reply_count, info.time_exceeded_count, info.no_route_count, 
-	  info.address_unreachable_count, info.admin_prohibited_count, info.port_unreachable_count, 
-	  info.reject_route_count, info.failed_policy_count, info.total_resp_count
-  );
-  */
-
-
-    struct capture_info* info_tree;
-    info_tree = (struct capture_info*) malloc(sizeof(struct capture_info));
-
-    info_tree->total_resp_count = 0;
-    info_tree->echo_req_count = 0;
-    info_tree->echo_reply_count = 0;
-    info_tree->time_exceeded_count = 0;
-    info_tree->no_route_count = 0;
-    info_tree->address_unreachable_count = 0;
-    info_tree->admin_prohibited_count = 0;
-    info_tree->port_unreachable_count = 0;
-    info_tree->reject_route_count = 0;
-    info_tree->failed_policy_count = 0;
-    info_tree->duplicate_probe_count = 0;
-
-    printf("info_tree set up\n");
-
-    if (info.send_tree_root->descendents){
-      traverse_leaf_nodes(info.send_tree_root, info_tree);
-    }
-    printf("send tree complete\n");
-    traverse_leaf_nodes(info.recv_tree_root, info_tree);
-    printf("recv tree complete\n");
-
-
-    printf("Tree info count:\nEcho Req: %d\nEcho Reply: %d\nTime Exceeded: %d\nNo Route: %d\nAddress Unreachable: %d\nAdmin Prohibited: %d\nPort Unreachable: %d\nReject Route: %d\nSrc Addr Failed Ingress/Egress Policy: %d\nTotal responses: %d\nDuplicate response count: %d\n\n", 
-    info_tree->echo_req_count, info_tree->echo_reply_count, info_tree->time_exceeded_count, info_tree->no_route_count, 
-    info_tree->address_unreachable_count, info_tree->admin_prohibited_count, info_tree->port_unreachable_count, 
-    info_tree->reject_route_count, info_tree->failed_policy_count, info_tree->total_resp_count, 
-    info_tree->duplicate_probe_count);
-
-
-  return 0;
+   return 0;
 }
 
 
