@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <time.h>
 #include "bgpstream.h"
 
 int main(int argc, const char **argv)
@@ -7,6 +8,9 @@ int main(int argc, const char **argv)
   bgpstream_record_t *record;
   bgpstream_elem_t *elem;
   char buffer[1024];
+
+  time_t timestamp;
+  struct tm ts;
 
   /* Define the prefix to monitor: 2403:f600::/32
   bgpstream_pfx_t my_pfx;
@@ -22,13 +26,16 @@ int main(int argc, const char **argv)
   bgpstream_add_filter(bs, BGPSTREAM_FILTER_TYPE_COLLECTOR, "route-views2");
   bgpstream_add_filter(bs, BGPSTREAM_FILTER_TYPE_RECORD_TYPE, "updates");
   bgpstream_add_filter(bs, BGPSTREAM_FILTER_TYPE_ELEM_IP_VERSION, "6");
-  /* Time interval: 01:20:10 - 06:32:15 on Tue, 12 Aug 2014 UTC */
-  //bgpstream_add_interval_filter(bs, 1407806410, 1407825135);
-  /* Time interval: 26/07/21, 01:00:00 - 05:00:00 UTC */
-  bgpstream_add_interval_filter(bs, 1627261200, 1627275600);
+  
+  /* Time interval: start point: 4 hours prior to now, til now */
+  time(&timestamp);
+  ts = *localtime(&timestamp);
+  bgpstream_add_interval_filter(bs, (timestamp - 14400), timestamp);
 
 
   /* Start the stream */
+
+
   bgpstream_start(bs);
 
   /* Read the stream of records */

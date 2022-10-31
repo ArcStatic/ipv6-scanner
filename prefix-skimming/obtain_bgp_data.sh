@@ -5,14 +5,21 @@ sudo wget -O /etc/apt/trusted.gpg.d/caida.gpg https://pkg.caida.org/os/ubuntu/ke
 
 sudo apt update; sudo apt-get install bgpstream
 
-echo "Setup complete"
-echo "Compiling bgpstream-pfx-mon.c"
-gcc bgpstream-pfx-mon.c  -lbgpstream -o pfx-monitoring
+echo "BGPStream setup complete"
+
+echo "Compiling scrape_bgp_advertisements.c"
+gcc scrape_bgp_advertisements.c  -lbgpstream -o scrape_bgp_advertisements
+
 echo "Scraping BGP data"
-./pfx-monitoring > bgp-jul26-1am-5am.txt
-echo "Filtering duplicate BGP advertisements"
-python3 prefix-filter.py bgp-jul26-1am-5am.txt > bgp-jul26-1am-5am-filtered.txt
-echo "Counting prefixes"
-python3 prefix_count.py bgp-jul26-1am-5am-filtered.txt > bgp-jul26-1am-5am-pfx-counts.txt
+./scrape_bgp_advertisements > raw_bgp_data_`date +%F`.txt
+
+echo "Filtering BGP advertisements - outputs are unique /48s"
+python3 prefix_filter.py raw_bgp_data_`date +%F`.txt --48 > filtered_bgp_data_`date +%F`.txt
+
+echo "Creating .txt files containing 2000 advertisements each"
+
+#echo "Counting prefixes"
+#python3 prefix_count.py  filtered_bgp_data_%d_%m_%y.txt > filtered_bgp_data_%d_%m_%y.txt
+
 
 
