@@ -16,7 +16,8 @@ echo "Scraping BGP data"
 echo "Filtering BGP advertisements - outputs are unique /48s"
 python3 prefix_filter.py raw_bgp_data_`date +%F`.txt --48 > filtered_bgp_data_`date +%F`.txt
 
-echo "Creating .txt files containing 2000 advertisements each"
+echo "Creating .txt files containing 2000 advertisements each, and bash scripts to run these scans"
+python3 divide_bgp_data.py filtered_bgp_data_`date +%F`.txt
 
 #echo "Counting prefixes"
 #python3 prefix_count.py  filtered_bgp_data_%d_%m_%y.txt > filtered_bgp_data_%d_%m_%y.txt
